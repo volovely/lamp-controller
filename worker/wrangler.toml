@@ -1,0 +1,9 @@
+name = "lamp-controller"
+main = "src/index.ts"
+compatibility_date = "2026-05-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Cron is wired up here so the schema validates; the handler is a no-op
+# until Stage 3 actually fetches Gmail.
+[triggers]
+crons = ["* * * * *"]
