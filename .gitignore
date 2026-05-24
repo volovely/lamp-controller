@@ -1,0 +1,36 @@
+# macOS
+.DS_Store
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Secrets / local config
+.env
+.env.*
+*.local
+*.local.*
+config.toml
+!config.toml.example
+secrets/
+*.key
+*.pem
+
+# Node / Worker
+worker/node_modules/
+worker/.wrangler/
+worker/dist/
+worker/coverage/
+
+# Swift / Xcode
+mac-agent/.build/
+mac-agent/.swiftpm/
+mac-agent/Packages/
+mac-agent/*.xcodeproj
+mac-agent/Package.resolved
+mac-agent/DerivedData/
+
+# Logs
+*.log
