@@ -15,7 +15,7 @@
     "action": {
       "type": "string",
       "enum": ["on", "off", "set"],
-      "description": "on/off toggle power; set adjusts brightness/color without toggling."
+      "description": "on/off toggle power; set turns the lamp on and adjusts brightness/color (it cannot change brightness/color while the lamp stays off)."
     },
     "brightness": {
       "type": "integer",
