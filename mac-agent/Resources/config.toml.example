@@ -1,6 +1,19 @@
 # Copy to ~/.config/lamp-agent/config.toml and chmod 600.
-homebridge_url   = "http://127.0.0.1:8581"
-homebridge_token = "REPLACE_WITH_HOMEBRIDGE_REST_TOKEN"
-accessory_id     = "REPLACE_WITH_ACCESSORY_UNIQUE_ID"
-commands_path    = "~/.local/state/lamp-agent/commands.json"
-poll_interval_s  = 12
+
+# Lamp control backend:
+#   "shortcuts" (default) — drives Apple Home via the macOS `shortcuts` CLI.
+#   "homebridge"          — talks to a Homebridge config-ui-x REST API.
+lamp_backend    = "shortcuts"
+
+# Shortcuts backend: the agent runs presets named "<prefix> Off" and
+# "<prefix> <Warm|Neutral|Cool> <25|50|100>" (e.g. "Lamp Warm 25").
+# Create these once in the Shortcuts app. Default prefix is "Lamp".
+shortcut_prefix = "Lamp"
+
+commands_path   = "~/.local/state/lamp-agent/commands.json"
+poll_interval_s = 12
+
+# Only needed when lamp_backend = "homebridge":
+# homebridge_url   = "http://127.0.0.1:8581"
+# homebridge_token = "REPLACE_WITH_HOMEBRIDGE_REST_TOKEN"
+# accessory_id     = "REPLACE_WITH_ACCESSORY_UNIQUE_ID"

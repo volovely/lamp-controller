@@ -1,7 +1,9 @@
 # mac-agent
 
-Swift CLI daemon that runs on the home Mac. Pulls commands from the
-Cloudflare Worker and applies them to the lamp via Homebridge's local REST API.
+Swift CLI daemon that runs on the home Mac. It polls a command queue (a local
+`commands.json` in Stage 1; the Cloudflare Worker in Stage 2+) and applies each
+command to the lamp. The default backend drives **Apple Home** via the macOS
+`shortcuts` CLI; a Homebridge REST backend is also available.
 
 ## Build
 
@@ -15,13 +17,15 @@ swift build
 swift test
 ```
 
-## Run (smoke test only at Stage 0)
+## Run
 
 ```bash
-swift run lamp-agent
+swift run lamp-agent --once   # one poll pass (apply pending commands, then exit)
+swift run lamp-agent          # daemon: poll forever at poll_interval_s
 ```
 
-Prints a greeting and exits. Real daemon behavior is added in Stage 1.
+Config is read from `$LAMP_AGENT_CONFIG` or `~/.config/lamp-agent/config.toml`
+(see [`Resources/config.toml.example`](Resources/config.toml.example)).
 
 ## Toolchain
 
@@ -34,7 +38,36 @@ sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 ```
 
-## Install (Stage 1+)
+## Controlling the lamp
+
+Two backends, selected by `lamp_backend` in `config.toml`:
+
+### `shortcuts` (default) — Apple Home
+
+For a lamp already paired to Apple Home (e.g. a Xiaomi Mijia desk lamp), the
+agent runs **preset Shortcuts** you create once in the Shortcuts app. Apple's
+Home action sets an accessory's *whole* state at once (brightness and color
+temperature together), so presets are combined. Create these (prefix `Lamp`):
+
+| | 25% | 50% | 100% |
+|---|---|---|---|
+| **Warm** | `Lamp Warm 25` | `Lamp Warm 50` | `Lamp Warm 100` |
+| **Neutral** | `Lamp Neutral 25` | `Lamp Neutral 50` | `Lamp Neutral 100` |
+| **Cool** | `Lamp Cool 25` | `Lamp Cool 50` | `Lamp Cool 100` |
+
+…plus `Lamp Off`. Each grid preset sets On + that brightness + that color
+temperature. The agent maps a command to the nearest cell: brightness →
+nearest of {25, 50, 100}; `color_temp_k` → Warm (≤3300 K) / Neutral
+(3301–4800) / Cool (>4800), then runs `Lamp <Bucket> <Level>`. Requires the
+Mac to stay logged into the same Apple ID as the Home.
+
+### `homebridge` — Homebridge REST (alternative)
+
+For a lamp bridged through Homebridge config-ui-x. Set `lamp_backend =
+"homebridge"` and provide `homebridge_url`, `homebridge_token`, `accessory_id`.
+See [`../homebridge/README.md`](../homebridge/README.md).
+
+## Install (launchd)
 
 Installation as a launchd LaunchAgent is documented in
 [`scripts/install.sh`](scripts/install.sh) and the ops runbook.
