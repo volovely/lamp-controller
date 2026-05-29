@@ -23,16 +23,11 @@
       "maximum": 100,
       "description": "Lamp brightness percent. Meaningful for 'on' and 'set'."
     },
-    "color": {
-      "type": "object",
-      "required": ["hex"],
-      "additionalProperties": false,
-      "properties": {
-        "hex": {
-          "type": "string",
-          "pattern": "^#[0-9a-fA-F]{6}$"
-        }
-      }
+    "color_temp_k": {
+      "type": "integer",
+      "minimum": 2700,
+      "maximum": 6500,
+      "description": "Lamp color temperature in Kelvin (warm 2700 ↔ cool 6500). The Mac agent clamps to the accessory's advertised range. Meaningful for 'on' and 'set'."
     },
     "duration_minutes": {
       "type": "integer",
