@@ -22,6 +22,17 @@ struct CommandExecutorTests {
                 durationMinutes: nil, createdAt: .init(timeIntervalSince1970: 0), sourceMsgId: "m")
     }
 
+    @Test("on with nil brightness and nil colorTempK resolves to defaults (100, 2700)")
+    func onDefaults() async throws {
+        let recorder = Recorder()
+        try await withDependencies {
+            $0.lampClient = makeClient(recorder)
+        } operation: {
+            try await CommandExecutor.live().execute(command(.on, brightness: nil, colorTempK: nil))
+        }
+        #expect(await recorder.states == [LampState(power: true, brightness: 100, colorTempK: 2700)])
+    }
+
     @Test("on with brightness and temp resolves to power=true with given brightness and colorTempK")
     func onFull() async throws {
         let recorder = Recorder()

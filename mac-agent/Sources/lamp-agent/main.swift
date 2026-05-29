@@ -21,6 +21,7 @@ switch config.lampBackend {
 case .shortcuts:
     lampClient = .shortcuts(prefix: config.shortcutPrefix, runner: .live)
 case .homebridge:
+    // Unreachable: Config.parse() already validates these for the homebridge backend; this unwraps the optionals.
     guard let url = config.homebridgeURL,
           let token = config.homebridgeToken,
           let accessoryId = config.accessoryId

@@ -60,6 +60,15 @@ struct ShortcutsClientTests {
         expectNoDifference(ran, ["Lamp Cool 25"])
     }
 
+    @Test("power=true, brightness=75, 2700 K → Lamp Warm 100 (tie-break rounds up)")
+    func warmTieBreakRoundsUp() async throws {
+        let box = Box()
+        let client = LampClient.shortcuts(prefix: "Lamp", runner: stubRunner(box: box))
+        try await client.apply(LampState(power: true, brightness: 75, colorTempK: 2700))
+        let ran = await box.ran
+        expectNoDifference(ran, ["Lamp Warm 100"])
+    }
+
     @Test("power=false → Lamp Off (brightness and color ignored)")
     func off() async throws {
         let box = Box()

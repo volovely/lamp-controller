@@ -63,9 +63,13 @@ extension LampClient {
 // MARK: - Mapping helpers (internal so @testable import can reach them)
 
 /// Snaps `brightness` (0–100) to the nearest preset level: 25, 50, or 100.
+/// On a tie (equal distance) the higher level wins, so 75 → 100 rather than 50.
 func nearestBrightnessLevel(_ brightness: Int) -> Int {
     let levels = [25, 50, 100]
-    return levels.min(by: { abs($0 - brightness) < abs($1 - brightness) }) ?? 100
+    return levels.min(by: { a, b in
+        let da = abs(a - brightness), db = abs(b - brightness)
+        return da != db ? da < db : a > b
+    }) ?? 100
 }
 
 /// Classifies a color temperature in kelvin into a named bucket.
