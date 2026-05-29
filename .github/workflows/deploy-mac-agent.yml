@@ -1,0 +1,30 @@
+name: deploy-mac-agent
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mac-agent/**'
+      - '.github/workflows/deploy-mac-agent.yml'
+
+concurrency:
+  group: deploy-mac-agent
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, macOS, lamp-mac]
+    defaults:
+      run:
+        working-directory: mac-agent
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show toolchain
+        run: swift --version
+      - name: Build, test, install
+        run: |
+          swift build -c release
+          swift test
+          ./scripts/install.sh
+      - name: Kick the agent
+        run: launchctl kickstart -k "gui/$(id -u)/com.lamp.agent"
