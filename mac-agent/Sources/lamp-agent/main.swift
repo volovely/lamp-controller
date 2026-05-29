@@ -1,3 +1,3 @@
 import LampAgent
 
-print(Hello.greet(name: "world"))
+// Entry point — wired in Task 11.
