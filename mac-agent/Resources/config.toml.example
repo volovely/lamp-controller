@@ -1,0 +1,6 @@
+# Copy to ~/.config/lamp-agent/config.toml and chmod 600.
+homebridge_url   = "http://127.0.0.1:8581"
+homebridge_token = "REPLACE_WITH_HOMEBRIDGE_REST_TOKEN"
+accessory_id     = "REPLACE_WITH_ACCESSORY_UNIQUE_ID"
+commands_path    = "~/.local/state/lamp-agent/commands.json"
+poll_interval_s  = 12

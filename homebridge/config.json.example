@@ -1,0 +1,31 @@
+{
+  "bridge": {
+    "name": "Homebridge",
+    "username": "CC:22:3D:E3:CE:30",
+    "port": 51826,
+    "pin": "031-45-154"
+  },
+  "accessories": [],
+  "platforms": [
+    {
+      "platform": "config",
+      "name": "Config",
+      "port": 8581,
+      "host": "127.0.0.1",
+      "sessionTimeout": 86400
+    },
+    {
+      "platform": "miot",
+      "name": "MiOT",
+      "devices": [
+        {
+          "name": "Desk Lamp",
+          "ip": "192.168.1.42",
+          "token": "REPLACE_WITH_32_CHAR_HEX_TOKEN_FROM_MICLOUD",
+          "model": "yeelink.light.lamp1",
+          "deviceId": "REPLACE_WITH_NUMERIC_DEVICE_ID_FROM_MICLOUD"
+        }
+      ]
+    }
+  ]
+}
