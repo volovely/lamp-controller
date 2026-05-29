@@ -123,6 +123,9 @@ struct HomebridgeClient {
 //        POST http://127.0.0.1:8581/api/auth/login
 //        Body: {"username":"admin","password":"<from config.toml>"}
 //        Response: {"access_token":"<JWT>","token_type":"Bearer","expires_in":86400}
+//        ↑ NOTE: expires_in=86400 (24 h) only because config.json.example sets
+//          sessionTimeout=86400. The Homebridge stock default is 28800 (8 h).
+//          Do NOT hardcode 86400 — always derive the expiry from the response value.
 //
 //   2. Store token + expiry (= Date.now + expires_in seconds).
 //
@@ -133,8 +136,8 @@ struct HomebridgeClient {
 //
 //   4. On 401 from a PUT, re-authenticate once and retry.
 //
-// The token is a standard JWT; expires_in is in seconds (config default 28800 = 8 h,
-// set to 86400 in config.json.example). There is no static API key mechanism.
+// The token is a standard JWT; expires_in is in seconds (stock default 28800 = 8 h,
+// overridden to 86400 = 24 h in config.json.example). There is no static API key mechanism.
 
 // MARK: - Command → characteristic mapping (reference)
 

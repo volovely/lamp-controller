@@ -67,13 +67,23 @@ daemon only needs to reach it locally), set `host` in `~/.homebridge/config.json
 Default admin credentials on a fresh install are `admin` / `admin`; change them
 at first login via the UI (Settings → User Accounts).
 
-To verify Homebridge is running:
+To verify Homebridge is running (no token required at this stage):
 
 ```bash
-curl -s http://127.0.0.1:8581/api/auth/check \
-  -H "Authorization: Bearer <token>"
-# → {"status":"OK"} when token is valid, 401 when not
+curl -fsS http://127.0.0.1:8581/ -o /dev/null && echo "Homebridge UI up"
+# Any non-connection-refused response confirms the process is listening.
+# If the command hangs or errors, run: hb-service restart
 ```
+
+Once you have a bearer token (Section 8), you can also validate it with:
+
+```
+GET /api/auth/check
+Authorization: Bearer <token>
+→ {"status":"OK"} when valid, 401 when expired
+```
+
+(That endpoint is documented fully in Section 7.2.)
 
 ---
 
@@ -121,21 +131,35 @@ You need it once during setup; it does not rotate.
 3. The plugin lists all devices on your account. Find the desk lamp entry; copy
    its **token** and **IP address**.
 
-### Method B — command-line MiCloud query
+### Method B — LAN discovery with `miio` (does NOT yield the token)
+
+`miio` is a separate npm package (not bundled with homebridge-miot) that can
+discover MIoT devices on the local network. Install it with:
 
 ```bash
-# Install the miot CLI helper (bundled with homebridge-miot)
 sudo npm install -g miio
-
-# List all cloud devices with their tokens
-miot cloud-devices -u YOUR_MI_ACCOUNT_EMAIL -p YOUR_PASSWORD
 ```
 
-The output includes one line per device:
+Run LAN discovery:
 
+```bash
+miio discover
+# Prints devices found on the LAN, including their IP and device ID.
+# Example output:
+#   Device ID:  12345678
+#   Model:      yeelink.light.lamp1
+#   Address:    192.168.1.42
+#   Token:      ???????????????????????????????
 ```
-yeelink.light.lamp1  192.168.1.42  abc123...32hexchars...  Desk Lamp
-```
+
+**Important limitation:** `miio discover` can find the lamp's IP and device ID,
+but it prints `???` for the token unless the device happened to broadcast it
+during the discovery window (which newer Xiaomi firmware does not do). LAN
+discovery alone is **not a reliable way to obtain the token**.
+
+Use Method B only to confirm the lamp's IP address and device ID on the LAN.
+To retrieve the token, use Method A (MiCloud discovery inside the Homebridge UI)
+or Method C (Python extractor).
 
 ### Method C — Xiaomi Cloud Token Extractor
 
