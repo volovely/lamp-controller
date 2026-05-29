@@ -16,12 +16,25 @@ do {
 
 let runOnce = CommandLine.arguments.contains("--once")
 
+let lampClient: LampClient
+switch config.lampBackend {
+case .shortcuts:
+    lampClient = .shortcuts(prefix: config.shortcutPrefix, runner: .live)
+case .homebridge:
+    guard let url = config.homebridgeURL,
+          let token = config.homebridgeToken,
+          let accessoryId = config.accessoryId
+    else {
+        FileHandle.standardError.write(
+            Data("lamp-agent: homebridge backend requires homebridge_url, homebridge_token, accessory_id\n".utf8)
+        )
+        exit(1)
+    }
+    lampClient = .homebridge(baseURL: url, token: token, accessoryId: accessoryId)
+}
+
 await withDependencies {
-    $0.lampClient = .homebridge(
-        baseURL: config.homebridgeURL,
-        token: config.homebridgeToken,
-        accessoryId: config.accessoryId
-    )
+    $0.lampClient = lampClient
 } operation: {
     let loop = Runtime.makePollLoop(config: config)
     do {
