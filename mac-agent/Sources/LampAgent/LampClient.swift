@@ -3,48 +3,55 @@ import DependenciesMacros
 import Foundation
 import IssueReporting
 
-/// HomeKit `ColorTemperature` is expressed in mired (reciprocal megakelvin),
-/// default range 140...500. Convert and clamp.
+/// HomeKit ColorTemperature is mired (reciprocal megakelvin), default range 140...500.
 public func miredFromKelvin(_ kelvin: Int) -> Int {
     guard kelvin > 0 else { return 500 }
     let mired = Int((1_000_000.0 / Double(kelvin)).rounded())
     return min(500, max(140, mired))
 }
 
-/// Drives a single lamp accessory through the homebridge-config-ui-x REST API.
-@DependencyClient
-public struct HomebridgeClient: Sendable {
-    public var setPower: @Sendable (_ on: Bool) async throws -> Void
-    public var setBrightness: @Sendable (_ percent: Int) async throws -> Void
-    public var setColorTemperature: @Sendable (_ kelvin: Int) async throws -> Void
-}
-
-extension HomebridgeClient: TestDependencyKey {
-    public static let testValue = HomebridgeClient()
-}
-
-extension DependencyValues {
-    public var homebridgeClient: HomebridgeClient {
-        get { self[HomebridgeClient.self] }
-        set { self[HomebridgeClient.self] = newValue }
+/// The fully-resolved desired lamp state, applied in one shot.
+public struct LampState: Equatable, Sendable {
+    public var power: Bool
+    public var brightness: Int
+    public var colorTempK: Int
+    public init(power: Bool, brightness: Int, colorTempK: Int) {
+        self.power = power
+        self.brightness = brightness
+        self.colorTempK = colorTempK
     }
 }
 
-extension HomebridgeClient {
+@DependencyClient
+public struct LampClient: Sendable {
+    public var apply: @Sendable (_ state: LampState) async throws -> Void
+}
+
+extension LampClient: TestDependencyKey {
+    public static let testValue = LampClient()
+}
+
+extension DependencyValues {
+    public var lampClient: LampClient {
+        get { self[LampClient.self] }
+        set { self[LampClient.self] = newValue }
+    }
+}
+
+extension LampClient {
     public enum ClientError: Error, Equatable {
         case requestFailed(status: Int)
         case unreachable
     }
 
-    /// Live implementation. Endpoints/auth per `homebridge/README.md` (Task 1):
-    /// `PUT {baseURL}/api/accessories/{accessoryId}` with a bearer token and
-    /// body `{ "characteristicType": <name>, "value": <bool|int> }`.
-    public static func live(
+    /// Homebridge config-ui-x backend.
+    /// `apply()` issues On, then (if on) Brightness + ColorTemperature.
+    public static func homebridge(
         baseURL: URL,
         token: String,
         accessoryId: String,
         session: URLSession = .shared
-    ) -> HomebridgeClient {
+    ) -> LampClient {
         let put: @Sendable (String, any Encodable & Sendable) async throws -> Void = { characteristic, value in
             let url = baseURL
                 .appendingPathComponent("api/accessories")
@@ -70,11 +77,13 @@ extension HomebridgeClient {
             }
         }
 
-        return HomebridgeClient(
-            setPower: { on in try await put("On", on) },
-            setBrightness: { percent in try await put("Brightness", min(100, max(0, percent))) },
-            setColorTemperature: { kelvin in try await put("ColorTemperature", miredFromKelvin(kelvin)) }
-        )
+        return LampClient { state in
+            try await put("On", state.power)
+            if state.power {
+                try await put("Brightness", min(100, max(0, state.brightness)))
+                try await put("ColorTemperature", miredFromKelvin(state.colorTempK))
+            }
+        }
     }
 }
 

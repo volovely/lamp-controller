@@ -17,7 +17,7 @@ do {
 let runOnce = CommandLine.arguments.contains("--once")
 
 await withDependencies {
-    $0.homebridgeClient = .live(
+    $0.lampClient = .homebridge(
         baseURL: config.homebridgeURL,
         token: config.homebridgeToken,
         accessoryId: config.accessoryId
