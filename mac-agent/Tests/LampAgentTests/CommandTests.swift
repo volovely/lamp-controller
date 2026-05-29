@@ -77,4 +77,26 @@ struct CommandTests {
         #expect(command.isStale(now: created.addingTimeInterval(601)))
         #expect(!command.isStale(now: created.addingTimeInterval(599)))
     }
+
+    @Test("decodes a command with fractional-second timestamp")
+    func decodeFractionalSeconds() throws {
+        let json = """
+        {"id":"a","action":"on","created_at":"2026-05-29T10:00:00.500Z","source_msg_id":"m"}
+        """.data(using: .utf8)!
+
+        let command = try Command.jsonDecoder.decode(Command.self, from: json)
+
+        #expect(command.createdAt == Date(timeIntervalSince1970: 1_780_048_800.5))
+    }
+
+    @Test("decode fails for an unknown action")
+    func decodeUnknownAction() {
+        let json = """
+        {"id":"a","action":"dim","created_at":"2026-05-29T10:00:00Z","source_msg_id":"m"}
+        """.data(using: .utf8)!
+
+        #expect(throws: (any Error).self) {
+            try Command.jsonDecoder.decode(Command.self, from: json)
+        }
+    }
 }
