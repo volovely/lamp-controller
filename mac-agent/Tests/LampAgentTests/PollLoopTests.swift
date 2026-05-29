@@ -12,8 +12,8 @@ struct PollLoopTests {
             .appendingPathComponent("poll-\(UUID().uuidString).json")
     }
 
-    private func command(_ id: String, action: Command.Action = .on, ageSeconds: TimeInterval = 0) -> Command {
-        Command(id: id, action: action, brightness: nil, colorTempK: nil, durationMinutes: nil,
+    private func command(_ id: String, action: Command.Action = .on, ageSeconds: TimeInterval = 0, brightness: Int? = nil) -> Command {
+        Command(id: id, action: action, brightness: brightness, colorTempK: nil, durationMinutes: nil,
                 createdAt: Date(timeIntervalSince1970: 1000 - ageSeconds), sourceMsgId: "m")
     }
 
@@ -92,7 +92,7 @@ struct PollLoopTests {
         var outcome: PollOutcome?
 
         // runOnce reports an issue on the failed command; withKnownIssue absorbs it.
-        await withKnownIssue {
+        try await withKnownIssue {
             try await withDependencies {
                 $0.date = .constant(Date(timeIntervalSince1970: 1000))
             } operation: {
@@ -100,10 +100,40 @@ struct PollLoopTests {
                 let executor = CommandExecutor { _ in throw Boom() }
                 outcome = try await PollLoop(source: source, executor: executor, ackStore: ackStore).runOnce()
             }
-        }
+        } matching: { $0.comments.map(\.rawValue).joined().contains("Failed to apply command") }
 
         #expect(try ackStore.load().isEmpty)
         #expect(outcome?.applied == [])
         #expect(outcome?.failed == true)
+    }
+
+    @Test("an invalid command is dropped and acked without executing, and does not mark outcome failed")
+    func dropsInvalidWithoutRetry() async throws {
+        let ackURL = tempURL(); defer { try? FileManager.default.removeItem(at: ackURL) }
+        let executed = Box()
+        // brightness: 150 fails validate() — out of range
+        let bad = command("bad", brightness: 150)
+        let ackStore = AckStore.file(at: ackURL)
+        var outcome: PollOutcome?
+
+        // runOnce calls reportIssue for the invalid command; withKnownIssue absorbs it.
+        try await withKnownIssue {
+            try await withDependencies {
+                $0.date = .constant(Date(timeIntervalSince1970: 1000))
+            } operation: {
+                let source = CommandSource(pending: { [bad] }, ack: { _ in })
+                let executor = CommandExecutor { await executed.add($0.id) }
+                outcome = try await PollLoop(source: source, executor: executor, ackStore: ackStore).runOnce()
+            }
+        } matching: { $0.comments.map(\.rawValue).joined().contains("Invalid command") }
+
+        // Must NOT have been executed
+        #expect(await executed.ids.isEmpty)
+        // Must have been acked (dropped permanently)
+        #expect(try ackStore.load().contains("bad"))
+        // Must appear in outcome.invalid
+        #expect(outcome?.invalid == ["bad"])
+        // Must NOT mark the cycle as a transient failure
+        #expect(outcome?.failed == false)
     }
 }
