@@ -1,0 +1,4 @@
+# Copy to worker/.dev.vars for local `wrangler dev`. Do NOT commit .dev.vars.
+# This is the Worker<->Mac bearer token; in production it is set via
+# `wrangler secret put MAC_SHARED_SECRET`.
+MAC_SHARED_SECRET=dev-local-secret-change-me

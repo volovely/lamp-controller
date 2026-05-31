@@ -27,7 +27,7 @@ Verify:
 
 ```bash
 swift --version            # >= 5.10
-pnpm --version             # >= 9
+pnpm --version             # >= 11
 wrangler --version         # >= 3.62
 gh --version               # >= 2.40
 ```

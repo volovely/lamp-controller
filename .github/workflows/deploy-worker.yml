@@ -31,5 +31,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: worker/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm exec wrangler deploy
