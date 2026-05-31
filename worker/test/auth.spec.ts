@@ -31,3 +31,25 @@ describe("requireBearer", () => {
     expect(requireBearer(req, env)?.status).toBe(401);
   });
 });
+
+describe("requireBearer — misconfigured secret", () => {
+  const emptyEnv = { MAC_SHARED_SECRET: "" } as const;
+
+  it("returns 500 (not null) when secret is empty and client sends empty token", () => {
+    const req = new Request("https://x/commands", {
+      headers: { Authorization: "Bearer " },
+    });
+    const res = requireBearer(req, emptyEnv);
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(500);
+  });
+
+  it("returns 500 when secret is empty and client sends a valid-looking token", () => {
+    const req = new Request("https://x/commands", {
+      headers: { Authorization: "Bearer s3cret" },
+    });
+    const res = requireBearer(req, emptyEnv);
+    expect(res).not.toBeNull();
+    expect(res?.status).toBe(500);
+  });
+});

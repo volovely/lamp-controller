@@ -46,4 +46,16 @@ describe("parseCommand", () => {
     expect(parseCommand("nope")).toBeNull();
     expect(parseCommand(null)).toBeNull();
   });
+
+  it("returns null when extra/unknown properties are present", () => {
+    expect(
+      parseCommand({
+        id: "a",
+        action: "on",
+        created_at: "2026-05-31T10:00:00Z",
+        source_msg_id: "m",
+        injected: "x",
+      })
+    ).toBeNull();
+  });
 });

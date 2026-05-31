@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Mirrors shared/command-schema.json
+// Mirrors shared/command-schema.json ("additionalProperties": false)
 export const CommandSchema = z.object({
   id: z.string(),
   action: z.enum(["on", "off", "set"]),
@@ -9,7 +9,7 @@ export const CommandSchema = z.object({
   duration_minutes: z.number().int().min(1).max(1440).optional(),
   created_at: z.string(),
   source_msg_id: z.string(),
-});
+}).strict();
 
 export type Command = z.infer<typeof CommandSchema>;
 
