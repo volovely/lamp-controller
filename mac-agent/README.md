@@ -47,19 +47,19 @@ Two backends, selected by `lamp_backend` in `config.toml`:
 For a lamp already paired to Apple Home (e.g. a Xiaomi Mijia desk lamp), the
 agent runs **preset Shortcuts** you create once in the Shortcuts app. Apple's
 Home action sets an accessory's *whole* state at once (brightness and color
-temperature together), so presets are combined. Create these (prefix `Lamp`):
+temperature together), so presets are combined. Create these 5 shortcuts
+(prefix `Lamp`):
 
-| | 25% | 50% | 100% |
-|---|---|---|---|
-| **Warm** | `Lamp Warm 25` | `Lamp Warm 50` | `Lamp Warm 100` |
-| **Neutral** | `Lamp Neutral 25` | `Lamp Neutral 50` | `Lamp Neutral 100` |
-| **Cool** | `Lamp Cool 25` | `Lamp Cool 50` | `Lamp Cool 100` |
+| | 50% | 100% |
+|---|---|---|
+| **Warm** | `Lamp Warm 50` | `Lamp Warm 100` |
+| **Cool** | `Lamp Cool 50` | `Lamp Cool 100` |
 
-…plus `Lamp Off`. Each grid preset sets On + that brightness + that color
-temperature. The agent maps a command to the nearest cell: brightness →
-nearest of {25, 50, 100}; `color_temp_k` → Warm (≤3300 K) / Neutral
-(3301–4800) / Cool (>4800), then runs `Lamp <Bucket> <Level>`. Requires the
-Mac to stay logged into the same Apple ID as the Home.
+…plus `Lamp Off` (5 shortcuts total). Each grid preset sets On + that
+brightness + that color temperature. The agent maps a command to the nearest
+cell: brightness → nearest of {50, 100}; `color_temp_k` → Warm (≤4000 K) /
+Cool (>4000 K), then runs `Lamp <Bucket> <Level>`. Requires the Mac to stay
+logged into the same Apple ID as the Home.
 
 ### `homebridge` — Homebridge REST (alternative)
 

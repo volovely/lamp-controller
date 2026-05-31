@@ -41,7 +41,7 @@ extension ShortcutRunner {
 extension LampClient {
     /// Shortcuts backend. Maps a `LampState` to one combined preset shortcut and runs it.
     /// - `power == false` → `"<prefix> Off"`
-    /// - `power == true`  → `"<prefix> <Warm|Neutral|Cool> <25|50|100>"`
+    /// - `power == true`  → `"<prefix> <Warm|Cool> <50|100>"`
     public static func shortcuts(
         prefix: String = "Lamp",
         runner: ShortcutRunner = .live
@@ -62,10 +62,10 @@ extension LampClient {
 
 // MARK: - Mapping helpers (internal so @testable import can reach them)
 
-/// Snaps `brightness` (0–100) to the nearest preset level: 25, 50, or 100.
+/// Snaps `brightness` (0–100) to the nearest preset level: 50 or 100.
 /// On a tie (equal distance) the higher level wins, so 75 → 100 rather than 50.
 func nearestBrightnessLevel(_ brightness: Int) -> Int {
-    let levels = [25, 50, 100]
+    let levels = [50, 100]
     return levels.min(by: { a, b in
         let da = abs(a - brightness), db = abs(b - brightness)
         return da != db ? da < db : a > b
@@ -73,11 +73,7 @@ func nearestBrightnessLevel(_ brightness: Int) -> Int {
 }
 
 /// Classifies a color temperature in kelvin into a named bucket.
-/// ≤ 3300 K → Warm, 3301–4800 K → Neutral, > 4800 K → Cool.
+/// ≤ 4000 K → Warm, > 4000 K → Cool.
 func colorBucket(_ kelvin: Int) -> String {
-    switch kelvin {
-    case ...3300:       return "Warm"
-    case 3301...4800:   return "Neutral"
-    default:            return "Cool"
-    }
+    kelvin <= 4000 ? "Warm" : "Cool"
 }

@@ -5,9 +5,10 @@
 #   "homebridge"          — talks to a Homebridge config-ui-x REST API.
 lamp_backend    = "shortcuts"
 
-# Shortcuts backend: the agent runs presets named "<prefix> Off" and
-# "<prefix> <Warm|Neutral|Cool> <25|50|100>" (e.g. "Lamp Warm 25").
-# Create these once in the Shortcuts app. Default prefix is "Lamp".
+# Shortcuts backend: the agent runs 5 presets named "<prefix> Off",
+# "<prefix> Warm 50", "<prefix> Warm 100", "<prefix> Cool 50",
+# "<prefix> Cool 100" (e.g. "Lamp Warm 50"). Create these once in the
+# Shortcuts app. Default prefix is "Lamp".
 shortcut_prefix = "Lamp"
 
 commands_path   = "~/.local/state/lamp-agent/commands.json"
