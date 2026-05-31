@@ -1,10 +1,10 @@
 import Dependencies
 import Foundation
 
-extension HomebridgeClient: DependencyKey {
+extension LampClient: DependencyKey {
     /// Unimplemented by default — the executable injects a configured live
     /// client via `withDependencies`. Tests inject their own stub.
-    public static var liveValue: HomebridgeClient { HomebridgeClient() }
+    public static var liveValue: LampClient { LampClient() }
 }
 
 /// Builds the fully-wired runtime objects from a parsed `Config`.
