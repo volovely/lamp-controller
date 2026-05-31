@@ -148,7 +148,48 @@ One-time setup to bring the Worker online.
    curl -s https://lamp-controller.<subdomain>.workers.dev/health   # {"ok":true}
    ```
 
-## 4. Gmail (Stage 3)
+## 4. Lamp Controller desktop app (home Mac)
+
+The **Lamp Controller app** (`mac-app/`) is the supported way to run the lamp
+agent continuously. Complete this section after the Worker is deployed (Stage 2).
+
+### 4a. Enable the HomeKit capability for the App ID
+
+1. Sign in at [developer.apple.com](https://developer.apple.com) →
+   **Certificates, Identifiers & Profiles → Identifiers**.
+2. Find or create App ID `com.volovely.lamp-controller`.
+3. Enable the **HomeKit** capability and save.
+
+A paid Apple Developer account is required.
+
+### 4b. Build the app
+
+```bash
+cd mac-app
+brew install xcodegen   # if not already installed
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+xcodegen generate
+xcodebuild -project LampController.xcodeproj -scheme LampController \
+  -destination 'platform=macOS,variant=Mac Catalyst' \
+  -allowProvisioningUpdates build
+```
+
+Or open in Xcode (`open LampController.xcodeproj`) and press ⌘R.
+
+The app is not built in CI — signing requires the paid Apple Developer team.
+
+### 4c. Configure and grant Home access
+
+1. Ensure `~/.config/lamp-agent/config.toml` is populated with `worker_url`,
+   `shared_secret`, and `homekit_accessory_name` (exact name from Apple Home).
+2. Launch the app and click **Start**.
+3. On first launch macOS shows **"Allow 'Lamp Controller' to access your home?"**
+   — click **Allow**. Without this, HomeKit calls silently fail.
+
+Verify: **System Settings → Privacy & Security → Home** — "Lamp Controller"
+should be listed and enabled.
+
+## 5. Gmail (Stage 3)
 
 Not yet needed at Stage 0. When Stage 3 lands:
 
@@ -156,7 +197,7 @@ Not yet needed at Stage 0. When Stage 3 lands:
 2. Generate an App Password (16-char): https://myaccount.google.com/apppasswords
 3. `cd worker && wrangler secret put IMAP_APP_PASSWORD`.
 
-## 5. Anthropic API key (Stage 3)
+## 6. Anthropic API key (Stage 3)
 
 Not yet needed at Stage 0. When Stage 3 lands:
 
@@ -164,7 +205,7 @@ Not yet needed at Stage 0. When Stage 3 lands:
 2. Create an API key.
 3. `cd worker && wrangler secret put ANTHROPIC_API_KEY`.
 
-## 6. Homebridge (Stage 1)
+## 7. Homebridge (Stage 1)
 
 Not yet needed at Stage 0. Setup is captured in
 [`homebridge/README.md`](../../homebridge/README.md) during Stage 1.
