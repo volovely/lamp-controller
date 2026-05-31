@@ -1,5 +1,13 @@
 # Homebridge — Xiaomi Mijia Desk Lamp bridging guide
 
+> **Alternative backend.** The default way the `lamp-agent` controls the lamp
+> is the macOS Shortcuts backend (Apple Home), documented in
+> [`../mac-agent/README.md`](../mac-agent/README.md#controlling-the-lamp). Use
+> this Homebridge path only if you set `lamp_backend = "homebridge"` — e.g. for
+> a lamp not already in Apple Home, bridged via a Xiaomi/Yeelight plugin.
+> Note: it requires the lamp to be reachable by `homebridge-miot` (Mi Home
+> token) — not applicable to a lamp that is HomeKit-only and off the Xiaomi cloud.
+
 This document is the complete, self-contained setup reference for bridging a
 Xiaomi Mijia Desk Lamp (1S / Pro family) into Apple Home via Homebridge on a
 home Mac, and for calling Homebridge's local REST API from the `lamp-agent`

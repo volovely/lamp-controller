@@ -1,6 +1,6 @@
 import Dependencies
 
-/// Maps a validated `Command` to ordered `HomebridgeClient` calls.
+/// Maps a validated `Command` to a `LampState` and applies it via `LampClient`.
 public struct CommandExecutor: Sendable {
     public var execute: @Sendable (_ command: Command) async throws -> Void
 
@@ -10,29 +10,19 @@ public struct CommandExecutor: Sendable {
 }
 
 extension CommandExecutor {
+    static let defaultBrightness = 100
+    static let defaultColorTempK = 2700
+
     public static func live() -> CommandExecutor {
         CommandExecutor { command in
-            @Dependency(\.homebridgeClient) var homebridge
-
-            switch command.action {
-            case .on:
-                try await homebridge.setPower(true)
-                if let brightness = command.brightness {
-                    try await homebridge.setBrightness(brightness)
-                }
-                if let kelvin = command.colorTempK {
-                    try await homebridge.setColorTemperature(kelvin)
-                }
-            case .off:
-                try await homebridge.setPower(false)
-            case .set:
-                if let brightness = command.brightness {
-                    try await homebridge.setBrightness(brightness)
-                }
-                if let kelvin = command.colorTempK {
-                    try await homebridge.setColorTemperature(kelvin)
-                }
-            }
+            @Dependency(\.lampClient) var lamp
+            let power = command.action != .off
+            let state = LampState(
+                power: power,
+                brightness: command.brightness ?? defaultBrightness,
+                colorTempK: command.colorTempK ?? defaultColorTempK
+            )
+            try await lamp.apply(state)
         }
     }
 }

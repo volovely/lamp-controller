@@ -1,7 +1,10 @@
 # mac-agent
 
-Swift CLI daemon that runs on the home Mac. Pulls commands from the
-Cloudflare Worker and applies them to the lamp via Homebridge's local REST API.
+Swift CLI daemon that runs on the home Mac. It polls a command queue (a local
+`commands.json` in Stage 1; the Cloudflare Worker in Stage 2+) and applies each
+command to the lamp. The default backend is **HomeKit** — a signed Mac Catalyst
+helper that sends exact brightness and colour temperature via Apple HomeKit.
+Shortcuts and Homebridge backends are also available.
 
 ## Build
 
@@ -15,13 +18,15 @@ swift build
 swift test
 ```
 
-## Run (smoke test only at Stage 0)
+## Run
 
 ```bash
-swift run lamp-agent
+swift run lamp-agent --once   # one poll pass (apply pending commands, then exit)
+swift run lamp-agent          # daemon: poll forever at poll_interval_s
 ```
 
-Prints a greeting and exits. Real daemon behavior is added in Stage 1.
+Config is read from `$LAMP_AGENT_CONFIG` or `~/.config/lamp-agent/config.toml`
+(see [`Resources/config.toml.example`](Resources/config.toml.example)).
 
 ## Toolchain
 
@@ -34,7 +39,102 @@ sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 ```
 
-## Install (Stage 1+)
+## Controlling the lamp
+
+Three backends, selected by `lamp_backend` in `config.toml`:
+
+### `homekit` (default) — native Apple Home
+
+The agent launches a signed **Mac Catalyst helper app** (`mac-agent/homekit-helper/`)
+per command via `open -W`. The helper talks directly to Apple HomeKit and sets
+exact brightness (0–100) and colour temperature (Kelvin) with no preset snapping.
+This is the highest-fidelity backend.
+
+#### One-time setup
+
+1. **Paid Apple Developer account required.** In Xcode → Settings → Accounts,
+   sign in with your Apple ID; Xcode will use that team to sign the helper.
+
+2. **Enable the HomeKit capability** for App ID `com.volovely.lamp-homekit-helper`
+   at [developer.apple.com](https://developer.apple.com) → Certificates, Identifiers
+   & Profiles → Identifiers, if it is not already enabled.
+
+3. **Build the helper:**
+
+   ```bash
+   brew install xcodegen   # if not already installed
+   cd mac-agent/homekit-helper
+   export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+   xcodegen generate
+   xcodebuild -project LampHomeKitHelper.xcodeproj -scheme LampHomeKitHelper \
+     -destination 'platform=macOS,variant=Mac Catalyst' \
+     -derivedDataPath build -allowProvisioningUpdates -allowProvisioningDeviceRegistration build
+   ```
+
+   The built app lands at:
+   `mac-agent/homekit-helper/build/Build/Products/Debug-maccatalyst/LampHomeKitHelper.app`
+
+   The `build/` directory is gitignored — rebuild locally or on the self-hosted
+   runner whenever the helper changes. CI does not build it (signing requires
+   the paid team).
+
+4. **Grant Home Access.** The first time you run the helper, macOS shows a
+   "Home Access" prompt — click **Allow**. To find the lamp's exact accessory
+   name as it appears in Apple Home, run:
+
+   ```bash
+   LAMP_HK_RESULT=/tmp/r open -W "/path/to/LampHomeKitHelper.app" --args --discover
+   cat /tmp/r
+   ```
+
+   This prints all homes and accessories. Pass `--verbose` for extra detail.
+
+5. **Update `config.toml`** with the two HomeKit keys:
+
+   ```toml
+   lamp_backend           = "homekit"
+   homekit_helper_path    = "/path/to/LampHomeKitHelper.app"
+   homekit_accessory_name = "Mijia desk lamp 1S"   # exact name from --discover
+   ```
+
+#### Notes
+
+- The Mac must stay logged into the **same Apple ID** as the Home; a different
+  ID or a signed-out session will cause Home access to fail.
+- Each command briefly launches the helper app in the background — this is
+  expected; it exits immediately after applying the command.
+- The helper is not built in CI. Build it locally or on the self-hosted runner
+  before deploying.
+
+---
+
+### `shortcuts` (alternative) — Apple Home via preset Shortcuts
+
+For a lamp already paired to Apple Home (e.g. a Xiaomi Mijia desk lamp), the
+agent runs **preset Shortcuts** you create once in the Shortcuts app. Apple's
+Home action sets an accessory's *whole* state at once (brightness and color
+temperature together), so presets are combined. Create these 5 shortcuts
+(prefix `Lamp`):
+
+| | 50% | 100% |
+|---|---|---|
+| **Warm** | `Lamp Warm 50` | `Lamp Warm 100` |
+| **Cool** | `Lamp Cool 50` | `Lamp Cool 100` |
+
+…plus `Lamp Off` (5 shortcuts total). Each grid preset sets On + that
+brightness + that color temperature. The agent maps a command to the nearest
+cell: brightness → nearest of {50, 100}; `color_temp_k` → Warm (≤4000 K) /
+Cool (>4000 K), then runs `Lamp <Bucket> <Level>`. Brightness and colour
+temperature snap to the nearest preset — exact values are not supported.
+Requires the Mac to stay logged into the same Apple ID as the Home.
+
+### `homebridge` (alternative) — Homebridge REST
+
+For a lamp bridged through Homebridge config-ui-x. Set `lamp_backend =
+"homebridge"` and provide `homebridge_url`, `homebridge_token`, `accessory_id`.
+See [`../homebridge/README.md`](../homebridge/README.md).
+
+## Install (launchd)
 
 Installation as a launchd LaunchAgent is documented in
 [`scripts/install.sh`](scripts/install.sh) and the ops runbook.

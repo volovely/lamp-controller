@@ -1,6 +1,35 @@
 # Copy to ~/.config/lamp-agent/config.toml and chmod 600.
-homebridge_url   = "http://127.0.0.1:8581"
-homebridge_token = "REPLACE_WITH_HOMEBRIDGE_REST_TOKEN"
-accessory_id     = "REPLACE_WITH_ACCESSORY_UNIQUE_ID"
-commands_path    = "~/.local/state/lamp-agent/commands.json"
-poll_interval_s  = 12
+
+# Lamp control backend:
+#   "homekit"    (default) — launches the signed Mac Catalyst helper app at
+#                            homekit_helper_path; sends exact brightness (0–100)
+#                            and colour temperature (Kelvin) via Apple HomeKit.
+#                            No preset snapping — every value is exact.
+#   "shortcuts"            — drives Apple Home via the macOS `shortcuts` CLI;
+#                            snaps brightness and colour temperature to a 5-preset
+#                            grid (Off / Warm 50 / Warm 100 / Cool 50 / Cool 100).
+#   "homebridge"           — talks to a Homebridge config-ui-x REST API.
+lamp_backend = "homekit"
+
+# HomeKit backend: path to the built LampHomeKitHelper.app and the lamp's
+# accessory name exactly as it appears in Apple Home.
+# See mac-agent/README.md → "homekit (default)" for one-time setup steps.
+homekit_helper_path    = "/path/to/mac-agent/homekit-helper/build/Build/Products/Debug-maccatalyst/LampHomeKitHelper.app"
+homekit_accessory_name = "Mijia desk lamp 1S"
+
+commands_path   = "~/.local/state/lamp-agent/commands.json"
+poll_interval_s = 12
+
+# Shortcuts backend (alternative): the agent runs 5 presets named
+# "<prefix> Off", "<prefix> Warm 50", "<prefix> Warm 100",
+# "<prefix> Cool 50", "<prefix> Cool 100" (e.g. "Lamp Warm 50").
+# Create these once in the Shortcuts app. Default prefix is "Lamp".
+# lamp_backend    = "shortcuts"
+# shortcut_prefix = "Lamp"
+
+# Homebridge backend (alternative): set lamp_backend = "homebridge" and
+# fill in the three keys below.
+# lamp_backend     = "homebridge"
+# homebridge_url   = "http://127.0.0.1:8581"
+# homebridge_token = "REPLACE_WITH_HOMEBRIDGE_REST_TOKEN"
+# accessory_id     = "REPLACE_WITH_ACCESSORY_UNIQUE_ID"
