@@ -6,14 +6,15 @@ import LampAgent
 /// accessory. The app is a foreground UIApplication, so HomeKit writes succeed
 /// (no Code=80 background error).
 @MainActor
-final class HomeKitController: NSObject, @preconcurrency HMHomeManagerDelegate, ObservableObject {
+final class HomeKitController: NSObject, @preconcurrency HMHomeManagerDelegate {
     enum State: Equatable {
         case loading
         case ready(accessoryCount: Int, accessoryFound: Bool)
         case denied
     }
 
-    @Published private(set) var state: State = .loading
+    private(set) var state: State = .loading
+    var onStateChange: (@MainActor (State) -> Void)?
 
     private let manager = HMHomeManager()
     private let accessoryName: String
@@ -24,6 +25,11 @@ final class HomeKitController: NSObject, @preconcurrency HMHomeManagerDelegate, 
         self.accessoryName = accessoryName
         super.init()
         manager.delegate = self
+    }
+
+    private func setState(_ new: State) {
+        state = new
+        onStateChange?(new)
     }
 
     // MARK: HMHomeManagerDelegate
@@ -38,7 +44,7 @@ final class HomeKitController: NSObject, @preconcurrency HMHomeManagerDelegate, 
 
     func homeManager(_ manager: HMHomeManager, didUpdate status: HMHomeManagerAuthorizationStatus) {
         if !status.contains(.authorized) {
-            state = .denied
+            setState(.denied)
         } else {
             refreshState()
         }
@@ -47,7 +53,7 @@ final class HomeKitController: NSObject, @preconcurrency HMHomeManagerDelegate, 
     private func refreshState() {
         let all = manager.homes.flatMap(\.accessories)
         let found = all.contains { $0.name == accessoryName }
-        state = .ready(accessoryCount: all.count, accessoryFound: found)
+        setState(.ready(accessoryCount: all.count, accessoryFound: found))
     }
 
     /// Suspends until HMHomeManager has loaded homes at least once.

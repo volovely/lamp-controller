@@ -18,6 +18,7 @@ final class AppModel {
 
     private(set) var runState: RunState = .stopped
     private(set) var activity: [LogEntry] = []
+    private(set) var homeKitState: HomeKitController.State = .loading
     var config: Config?
     var configError: String?
 
@@ -32,7 +33,10 @@ final class AppModel {
             config = try Config.load(from: URL(fileURLWithPath: path))
             configError = nil
             if let name = config?.homekitAccessoryName {
-                controller = HomeKitController(accessoryName: name)
+                let c = HomeKitController(accessoryName: name)
+                c.onStateChange = { [weak self] state in self?.homeKitState = state }
+                homeKitState = c.state
+                controller = c
             }
         } catch {
             config = nil

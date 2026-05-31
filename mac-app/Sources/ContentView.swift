@@ -44,8 +44,8 @@ struct ContentView: View {
     private var startDisabled: Bool {
         if model.runState == .running { return false }   // always allow Stop
         if model.config == nil { return true }
-        switch model.homeKitController?.state {
-        case .denied, .loading, .none: return true
+        switch model.homeKitState {
+        case .denied, .loading: return true
         case .ready: return false
         }
     }
@@ -58,8 +58,8 @@ struct ContentView: View {
     }
 
     private var homeKitStatus: String {
-        switch model.homeKitController?.state {
-        case .loading, nil: "loading…"
+        switch model.homeKitState {
+        case .loading: "loading…"
         case .denied: "access denied — System Settings ▸ Privacy ▸ Home"
         case let .ready(count, found): found ? "ready · \(count) accessories" : "accessory not found"
         }
