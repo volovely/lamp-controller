@@ -1,0 +1,58 @@
+name: LampController
+options:
+  bundleIdPrefix: com.volovely
+packages:
+  LampAgent:
+    path: ../mac-agent
+targets:
+  LampController:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Sources
+    dependencies:
+      - package: LampAgent
+        product: LampAgent
+    settings:
+      base:
+        SUPPORTS_MACCATALYST: "YES"
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: "NO"
+        SUPPORTS_IOS_APPS_ON_MAC: "NO"
+        TARGETED_DEVICE_FAMILY: "2"
+        DEVELOPMENT_TEAM: "3MFN7Y7D69"
+        CODE_SIGN_STYLE: Automatic
+        PRODUCT_BUNDLE_IDENTIFIER: com.volovely.lamp-controller
+        GENERATE_INFOPLIST_FILE: "YES"
+        INFOPLIST_KEY_NSHomeKitUsageDescription: "Lamp Controller sets your lamp's power, brightness, and color temperature."
+        INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
+        CODE_SIGN_ENTITLEMENTS: Sources/Entitlements.entitlements
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "6.0"
+  AppLogicTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Tests/AppLogicTests
+    dependencies:
+      - target: LampController
+      - package: LampAgent
+        product: LampAgent
+    settings:
+      base:
+        SUPPORTS_MACCATALYST: "YES"
+        TARGETED_DEVICE_FAMILY: "2"
+        DEVELOPMENT_TEAM: "3MFN7Y7D69"
+        GENERATE_INFOPLIST_FILE: "YES"
+        SWIFT_VERSION: "6.0"
+schemes:
+  LampController:
+    build:
+      targets:
+        LampController: all
+        AppLogicTests: [test]
+    test:
+      targets:
+        - AppLogicTests
