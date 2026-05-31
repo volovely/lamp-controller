@@ -4,6 +4,54 @@ What to do when things break. Populated progressively across stages.
 
 ## Known incidents and responses
 
+### Stage 1 — HomeKit backend (`lamp_backend = "homekit"`)
+
+**Symptom:** `lamp-agent --once` prints `failed=true` and the lamp doesn't change.
+
+**Causes and checks:**
+
+1. **Helper app path wrong or not built.** Confirm `homekit_helper_path` in
+   `config.toml` points to a real `.app` bundle. If the path is missing or
+   stale, build the helper:
+   ```bash
+   cd mac-agent/homekit-helper
+   export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+   xcodebuild -project LampHomeKitHelper.xcodeproj -scheme LampHomeKitHelper \
+     -destination 'platform=macOS,variant=Mac Catalyst' \
+     -derivedDataPath build -allowProvisioningUpdates build
+   ```
+
+2. **"Home Access" not granted.** If the helper has never been allowed, macOS
+   silently blocks Home calls. Re-run discovery to trigger the prompt and click
+   **Allow**:
+   ```bash
+   LAMP_HK_RESULT=/tmp/r open -W "/path/to/LampHomeKitHelper.app" --args --discover
+   cat /tmp/r
+   ```
+   Also check System Settings → Privacy & Security → Home to confirm the
+   helper is listed and enabled.
+
+3. **Accessory name mismatch.** `homekit_accessory_name` in `config.toml`
+   must match the name exactly as it appears in Apple Home (case-sensitive,
+   spaces included). Use `--discover` (or `--verbose`) to list all home names
+   and accessory names:
+   ```bash
+   LAMP_HK_RESULT=/tmp/r open -W "/path/to/LampHomeKitHelper.app" --args --discover --verbose
+   cat /tmp/r
+   ```
+   Update `homekit_accessory_name` to match exactly.
+
+4. **Mac logged out of Apple ID.** The helper uses the same Apple ID as the
+   Home. Check System Settings → Apple ID — the account must be signed in.
+   A signed-out or switched account causes all Home calls to fail.
+
+**Key behaviour:** A failed HomeKit call does NOT ack the command. The command
+remains in `commands.json` (or the Worker queue) and will be retried on the
+next poll. Stale commands (> 10 min old) are acked without a HomeKit call and
+will never be retried — this is correct.
+
+---
+
 ### Stage 1 — Homebridge unreachable (connection refused)
 
 **Symptom:** `lamp-agent --once` prints `applied=[] stale=[] failed=true`.
