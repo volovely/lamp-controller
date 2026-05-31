@@ -4,6 +4,9 @@ options:
 packages:
   LampAgent:
     path: ../mac-agent
+  swift-dependencies:
+    url: https://github.com/pointfreeco/swift-dependencies
+    from: "1.3.0"
 targets:
   LampController:
     type: application
@@ -14,6 +17,8 @@ targets:
     dependencies:
       - package: LampAgent
         product: LampAgent
+      - package: swift-dependencies
+        product: Dependencies
     settings:
       base:
         SUPPORTS_MACCATALYST: "YES"
@@ -30,6 +35,9 @@ targets:
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "6.0"
+        PRODUCT_MODULE_NAME: LampController
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
   AppLogicTests:
     type: bundle.unit-test
     platform: iOS
@@ -40,6 +48,8 @@ targets:
       - target: LampController
       - package: LampAgent
         product: LampAgent
+      - package: swift-dependencies
+        product: Dependencies
     settings:
       base:
         SUPPORTS_MACCATALYST: "YES"
@@ -47,6 +57,9 @@ targets:
         DEVELOPMENT_TEAM: "3MFN7Y7D69"
         GENERATE_INFOPLIST_FILE: "YES"
         SWIFT_VERSION: "6.0"
+        PRODUCT_MODULE_NAME: AppLogicTests
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
 schemes:
   LampController:
     build:

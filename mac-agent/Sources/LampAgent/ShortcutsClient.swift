@@ -1,5 +1,8 @@
 import Foundation
 
+// Process-based helpers are unavailable on Mac Catalyst (no subprocess API there).
+#if !targetEnvironment(macCatalyst)
+
 /// Runs a named macOS Shortcut. Injected so the mapping logic is testable.
 public struct ShortcutRunner: Sendable {
     public var run: @Sendable (_ name: String) async throws -> Void
@@ -77,3 +80,5 @@ func nearestBrightnessLevel(_ brightness: Int) -> Int {
 func colorBucket(_ kelvin: Int) -> String {
     kelvin <= 4000 ? "Warm" : "Cool"
 }
+
+#endif // !targetEnvironment(macCatalyst)

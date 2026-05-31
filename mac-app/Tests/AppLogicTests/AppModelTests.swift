@@ -39,12 +39,16 @@ struct AppModelTests {
 
     @Test("start sets running, stop sets stopped")
     func startStop() async {
-        let model = AppModel()
-        #expect(model.runState == .stopped)
-        // start with a never-yielding source so the loop idles; we just check the flag flips.
-        model.beginForTesting()
-        #expect(model.runState == .running)
-        model.stop()
-        #expect(model.runState == .stopped)
+        await withDependencies {
+            $0.date = .constant(Date(timeIntervalSince1970: 0))
+        } operation: {
+            let model = AppModel()
+            #expect(model.runState == .stopped)
+            // start with a never-yielding source so the loop idles; we just check the flag flips.
+            model.beginForTesting()
+            #expect(model.runState == .running)
+            model.stop()
+            #expect(model.runState == .stopped)
+        }
     }
 }

@@ -1,5 +1,9 @@
 import Foundation
 
+// Process-based helpers are unavailable on Mac Catalyst (no subprocess API there).
+// The Catalyst app uses HomeKitController directly instead of launching a helper process.
+#if !targetEnvironment(macCatalyst)
+
 /// Runs the signed HomeKit helper app to control a lamp accessory.
 /// Injected so the mapping logic is testable without launching a real process.
 public struct HomeKitRunner: Sendable {
@@ -99,3 +103,5 @@ extension LampClient {
         )
     }
 }
+
+#endif // !targetEnvironment(macCatalyst)

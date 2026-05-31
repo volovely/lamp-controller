@@ -6,7 +6,7 @@ import LampAgent
 /// accessory. The app is a foreground UIApplication, so HomeKit writes succeed
 /// (no Code=80 background error).
 @MainActor
-final class HomeKitController: NSObject, HMHomeManagerDelegate, ObservableObject {
+final class HomeKitController: NSObject, @preconcurrency HMHomeManagerDelegate, ObservableObject {
     enum State: Equatable {
         case loading
         case ready(accessoryCount: Int, accessoryFound: Bool)
