@@ -111,6 +111,43 @@ free github-hosted runners).
 
    It should pick up the `lamp-mac` runner.
 
+## Stage 2 — Worker queue (Cloudflare)
+
+One-time setup to bring the Worker online.
+
+1. **Create the KV namespace** (from `worker/`):
+   ```bash
+   cd worker
+   pnpm exec wrangler kv namespace create COMMANDS
+   ```
+   Paste the printed `id` into `worker/wrangler.toml` under `[[kv_namespaces]]`
+   (replacing `REPLACE_WITH_KV_NAMESPACE_ID`).
+
+2. **Generate the shared secret and set it on the Worker:**
+   ```bash
+   openssl rand -hex 32            # copy this value
+   pnpm exec wrangler secret put MAC_SHARED_SECRET   # paste it
+   ```
+   Put the **same** value in the Mac's `~/.config/lamp-agent/config.toml` as
+   `shared_secret`.
+
+3. **GitHub repo secrets** (for the dormant deploy workflow):
+   ```bash
+   gh secret set CLOUDFLARE_API_TOKEN     # scoped token: Workers Scripts + KV edit
+   gh secret set CLOUDFLARE_ACCOUNT_ID
+   ```
+
+4. **First deploy** (manual until the self-hosted runner is registered):
+   ```bash
+   cd worker && pnpm exec wrangler deploy
+   ```
+   Note the printed `*.workers.dev` URL → set it as `worker_url` in the Mac config.
+
+5. **Smoke test:**
+   ```bash
+   curl -s https://lamp-controller.<subdomain>.workers.dev/health   # {"ok":true}
+   ```
+
 ## 4. Gmail (Stage 3)
 
 Not yet needed at Stage 0. When Stage 3 lands:
