@@ -32,6 +32,17 @@ case .homebridge:
         exit(1)
     }
     lampClient = .homebridge(baseURL: url, token: token, accessoryId: accessoryId)
+case .homekit:
+    // Unreachable: Config.parse() already validates these for the homekit backend; this unwraps the optionals.
+    guard let helperPath = config.homekitHelperPath,
+          let accessoryName = config.homekitAccessoryName
+    else {
+        FileHandle.standardError.write(
+            Data("lamp-agent: homekit backend requires homekit_helper_path, homekit_accessory_name\n".utf8)
+        )
+        exit(1)
+    }
+    lampClient = .homekit(helperAppPath: helperPath, accessoryName: accessoryName)
 }
 
 await withDependencies {

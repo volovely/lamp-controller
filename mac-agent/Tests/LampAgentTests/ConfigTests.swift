@@ -27,13 +27,96 @@ struct ConfigTests {
         #expect(config.accessoryId == "lamp-desk")
     }
 
-    // MARK: - Shortcuts default
+    // MARK: - HomeKit default
 
-    @Test("shortcuts backend is default when lamp_backend is absent")
-    func shortcutsIsDefault() throws {
+    @Test("homekit backend is default when lamp_backend is absent (with required fields)")
+    func homekitIsDefault() throws {
+        let toml = """
+        commands_path          = "/tmp/commands.json"
+        poll_interval_s        = 5
+        homekit_helper_path    = "/Applications/LampHK.app"
+        homekit_accessory_name = "Lamp"
+        """
+        let config = try Config.parse(toml)
+
+        #expect(config.lampBackend == .homekit)
+        #expect(config.homekitHelperPath == "/Applications/LampHK.app")
+        #expect(config.homekitAccessoryName == "Lamp")
+    }
+
+    @Test("homekit backend without required fields throws missingKey")
+    func homekitBackendMissingFields() throws {
         let toml = """
         commands_path   = "/tmp/commands.json"
         poll_interval_s = 5
+        """
+        #expect(throws: Config.ConfigError.self) { try Config.parse(toml) }
+    }
+
+    @Test("homekit backend missing accessory_name throws missingKey")
+    func homekitBackendMissingAccessoryName() throws {
+        let toml = """
+        commands_path          = "/tmp/commands.json"
+        poll_interval_s        = 5
+        lamp_backend           = "homekit"
+        homekit_helper_path    = "/Applications/LampHK.app"
+        """
+        #expect(throws: Config.ConfigError.missingKey("homekit_accessory_name")) {
+            try Config.parse(toml)
+        }
+    }
+
+    @Test("homekit backend missing helper_path throws missingKey")
+    func homekitBackendMissingHelperPath() throws {
+        let toml = """
+        commands_path          = "/tmp/commands.json"
+        poll_interval_s        = 5
+        lamp_backend           = "homekit"
+        homekit_accessory_name = "Lamp"
+        """
+        #expect(throws: Config.ConfigError.missingKey("homekit_helper_path")) {
+            try Config.parse(toml)
+        }
+    }
+
+    @Test("homekit backend parses with both required fields")
+    func homekitBackendParses() throws {
+        let toml = """
+        commands_path          = "/tmp/commands.json"
+        poll_interval_s        = 10
+        lamp_backend           = "homekit"
+        homekit_helper_path    = "/Applications/LampHK.app"
+        homekit_accessory_name = "Mijia desk lamp 1S"
+        """
+        let config = try Config.parse(toml)
+
+        #expect(config.lampBackend == .homekit)
+        #expect(config.homekitHelperPath == "/Applications/LampHK.app")
+        #expect(config.homekitAccessoryName == "Mijia desk lamp 1S")
+    }
+
+    @Test("tilde is expanded in homekit_helper_path")
+    func homekitHelperPathTildeExpanded() throws {
+        let toml = """
+        commands_path          = "/tmp/commands.json"
+        poll_interval_s        = 5
+        lamp_backend           = "homekit"
+        homekit_helper_path    = "~/Applications/LampHK.app"
+        homekit_accessory_name = "Lamp"
+        """
+        let config = try Config.parse(toml)
+        #expect(config.homekitHelperPath?.hasPrefix("~") == false)
+        #expect(config.homekitHelperPath?.hasSuffix("/Applications/LampHK.app") == true)
+    }
+
+    // MARK: - Shortcuts (explicit)
+
+    @Test("shortcuts backend parses when explicitly set")
+    func shortcutsExplicit() throws {
+        let toml = """
+        commands_path   = "/tmp/commands.json"
+        poll_interval_s = 5
+        lamp_backend    = "shortcuts"
         """
         let config = try Config.parse(toml)
 
@@ -51,6 +134,7 @@ struct ConfigTests {
         let toml = """
         commands_path   = "/tmp/commands.json"
         poll_interval_s = 5
+        lamp_backend    = "shortcuts"
         shortcut_prefix = "Desk"
         """
         let config = try Config.parse(toml)
@@ -90,6 +174,7 @@ struct ConfigTests {
         let toml = """
         commands_path   = "~/x/commands.json"
         poll_interval_s = 5
+        lamp_backend    = "shortcuts"
         """
         let config = try Config.parse(toml)
         #expect(!config.commandsPath.hasPrefix("~"))
