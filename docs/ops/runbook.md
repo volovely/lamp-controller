@@ -2,59 +2,46 @@
 
 What to do when things break. Populated progressively across stages.
 
+## Architecture note
+
+The lamp is controlled by the **Lamp Controller desktop app** (`mac-app/`), which
+runs on the home Mac, polls the Cloudflare Worker, and drives the lamp via
+in-process Apple HomeKit. There is no launchd daemon for the lamp agent — the app
+must be open and running (showing the **Stop** button / running indicator).
+
+---
+
 ## Known incidents and responses
 
-### Stage 1 — HomeKit backend (`lamp_backend = "homekit"`)
+### Lamp Controller app — HomeKit call fails
 
-**Symptom:** `lamp-agent --once` prints `failed=true` and the lamp doesn't change.
+**Symptom:** The app is running but the lamp does not change after a command is
+issued.
 
 **Causes and checks:**
 
-1. **Helper app path wrong or not built.** Confirm `homekit_helper_path` in
-   `config.toml` points to a real `.app` bundle. If the path is missing or
-   stale, build the helper:
-   ```bash
-   cd mac-agent/homekit-helper
-   export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
-   xcodebuild -project LampHomeKitHelper.xcodeproj -scheme LampHomeKitHelper \
-     -destination 'platform=macOS,variant=Mac Catalyst' \
-     -derivedDataPath build -allowProvisioningUpdates build
-   ```
+1. **"Home Access" not granted.** If the app has never been allowed, macOS
+   silently blocks Home calls. Check **System Settings → Privacy & Security →
+   Home** — "Lamp Controller" should be listed and enabled. If not, quit the app,
+   remove it from the list if present, relaunch, and click **Allow** when prompted.
 
-2. **"Home Access" not granted.** If the helper has never been allowed, macOS
-   silently blocks Home calls. Re-run discovery to trigger the prompt and click
-   **Allow**:
-   ```bash
-   LAMP_HK_RESULT=/tmp/r open -W "/path/to/LampHomeKitHelper.app" --args --discover
-   cat /tmp/r
-   ```
-   Also check System Settings → Privacy & Security → Home to confirm the
-   helper is listed and enabled.
-
-3. **Accessory name mismatch.** `homekit_accessory_name` in `config.toml`
+2. **Accessory name mismatch.** `homekit_accessory_name` in `config.toml`
    must match the name exactly as it appears in Apple Home (case-sensitive,
-   spaces included). Use `--discover` (or `--verbose`) to list all home names
-   and accessory names:
-   ```bash
-   LAMP_HK_RESULT=/tmp/r open -W "/path/to/LampHomeKitHelper.app" --args --discover --verbose
-   cat /tmp/r
-   ```
-   Update `homekit_accessory_name` to match exactly.
+   spaces included). Open the Home app to verify the exact name.
 
-4. **Mac logged out of Apple ID.** The helper uses the same Apple ID as the
-   Home. Check System Settings → Apple ID — the account must be signed in.
-   A signed-out or switched account causes all Home calls to fail.
+3. **Mac logged out of Apple ID.** The app uses the same Apple ID as the Home.
+   Check **System Settings → Apple ID** — the account must be signed in.
 
 **Key behaviour:** A failed HomeKit call does NOT ack the command. The command
-remains in `commands.json` (or the Worker queue) and will be retried on the
-next poll. Stale commands (> 10 min old) are acked without a HomeKit call and
-will never be retried — this is correct.
+remains in the Worker queue and will be retried on the next poll. Stale commands
+(> 10 min old) are acked without a HomeKit call and will never be retried — this
+is correct.
 
 ---
 
 ### Stage 1 — Homebridge unreachable (connection refused)
 
-**Symptom:** `lamp-agent --once` prints `applied=[] stale=[] failed=true`.
+**Symptom:** `lamp-agent --once` (CLI smoke-test) prints `applied=[] stale=[] failed=true`.
 
 **Cause:** Homebridge is not running or is bound to a different port than `homebridge_url` in `config.toml`.
 
@@ -74,10 +61,9 @@ Mac isn't logged into the Home's Apple ID, or the GUI session is locked/logged o
 
 **Response:**
 1. List shortcuts: `shortcuts list | grep Lamp` — confirm the grid exists
-   (`Lamp Off`, `Lamp Warm 25` … `Lamp Cool 100`). Names must match `shortcut_prefix`.
+   (`Lamp Off`, `Lamp Warm 50` … `Lamp Cool 100`). Names must match `shortcut_prefix`.
 2. Test one directly: `shortcuts run "Lamp Warm 50"` — the lamp should change.
-3. Ensure the Mac is logged into the same Apple ID as the Home and stays awake
-   (the LaunchAgent runs in the GUI session; a locked/logged-out session blocks Home access).
+3. Ensure the Mac is logged into the same Apple ID as the Home and stays awake.
 
 **Key behaviour:** a failed `shortcuts run` (non-zero exit) does NOT ack the
 command, so it retries on the next poll. The agent snaps brightness to the
@@ -86,7 +72,7 @@ nearest of {25, 50, 100} and color to Warm/Neutral/Cool, so exact values are app
 ## Common checks
 
 - **Is the Worker alive?** `curl https://lamp-controller.<account>.workers.dev/health`
-- **Is the Mac agent running?** `launchctl list | grep com.lamp.agent`
+- **Is the Lamp Controller app running?** The app window should be open on the home Mac and showing the **Stop** button (or a running indicator). If it was quit or the Mac restarted, reopen the app and click **Start**.
 - **Is the self-hosted runner online?** Repo Settings → Actions → Runners.
 
 ## Log locations
@@ -94,5 +80,6 @@ nearest of {25, 50, 100} and color to Warm/Neutral/Cool, so exact values are app
 | Component | Location |
 |---|---|
 | Worker | `wrangler tail` (live) or Cloudflare dashboard |
-| Mac agent | `~/Library/Logs/lamp-agent.log` |
+| Mac agent (CLI) | `~/Library/Logs/lamp-agent.log` |
+| Lamp Controller app | Console.app → filter by "LampController" |
 | Homebridge | `~/.homebridge/homebridge.log` |

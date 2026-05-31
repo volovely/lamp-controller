@@ -5,7 +5,6 @@ public struct Config: Equatable, Sendable {
     public enum Backend: String, Sendable, Equatable {
         case shortcuts
         case homebridge
-        case homekit
     }
 
     public enum CommandSourceKind: String, Sendable, Equatable {
@@ -30,7 +29,6 @@ public struct Config: Equatable, Sendable {
     public var homebridgeURL: URL?
     public var homebridgeToken: String?
     public var accessoryId: String?
-    public var homekitHelperPath: String?
     public var homekitAccessoryName: String?
 
     public init(
@@ -40,12 +38,11 @@ public struct Config: Equatable, Sendable {
         commandSource: CommandSourceKind = .worker,
         workerURL: URL? = nil,
         sharedSecret: String? = nil,
-        lampBackend: Backend = .homekit,
+        lampBackend: Backend = .shortcuts,
         shortcutPrefix: String = "Lamp",
         homebridgeURL: URL? = nil,
         homebridgeToken: String? = nil,
         accessoryId: String? = nil,
-        homekitHelperPath: String? = nil,
         homekitAccessoryName: String? = nil
     ) {
         self.commandsPath = commandsPath
@@ -59,7 +56,6 @@ public struct Config: Equatable, Sendable {
         self.homebridgeURL = homebridgeURL
         self.homebridgeToken = homebridgeToken
         self.accessoryId = accessoryId
-        self.homekitHelperPath = homekitHelperPath
         self.homekitAccessoryName = homekitAccessoryName
     }
 
@@ -122,7 +118,7 @@ public struct Config: Equatable, Sendable {
             ?? "~/.local/state/lamp-agent/acked.json")
         let expandedStatePath = (statePath as NSString).expandingTildeInPath
 
-        // lamp_backend — optional, defaults to .homekit
+        // lamp_backend — optional, defaults to .shortcuts
         let backend: Backend
         if let rawBackend = optionalString("lamp_backend") {
             guard let parsed = Backend(rawValue: rawBackend) else {
@@ -130,7 +126,7 @@ public struct Config: Equatable, Sendable {
             }
             backend = parsed
         } else {
-            backend = .homekit
+            backend = .shortcuts
         }
 
         // shortcut_prefix — optional, defaults to "Lamp"
@@ -157,16 +153,8 @@ public struct Config: Equatable, Sendable {
             if accessoryId == nil { throw ConfigError.missingKey("accessory_id") }
         }
 
-        // HomeKit fields — optional individually, but both required together
-        let rawHelperPath = optionalString("homekit_helper_path")
-        let homekitHelperPath = rawHelperPath.map { ($0 as NSString).expandingTildeInPath }
+        // homekit_accessory_name — optional; read by the desktop app to identify the accessory
         let homekitAccessoryName = optionalString("homekit_accessory_name")
-
-        // Validation: homekit backend requires both fields
-        if backend == .homekit {
-            if homekitHelperPath == nil { throw ConfigError.missingKey("homekit_helper_path") }
-            if homekitAccessoryName == nil { throw ConfigError.missingKey("homekit_accessory_name") }
-        }
 
         return Config(
             commandsPath: commandsPath,
@@ -180,7 +168,6 @@ public struct Config: Equatable, Sendable {
             homebridgeURL: homebridgeURL,
             homebridgeToken: homebridgeToken,
             accessoryId: accessoryId,
-            homekitHelperPath: homekitHelperPath,
             homekitAccessoryName: homekitAccessoryName
         )
     }

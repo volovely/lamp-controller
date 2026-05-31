@@ -13,7 +13,8 @@ via Homebridge.
 | Path | Purpose |
 |---|---|
 | `worker/` | Cloudflare Worker (TypeScript) — cron + fetch handlers |
-| `mac-agent/` | Swift CLI daemon running on the home Mac |
+| `mac-app/` | Lamp Controller desktop app (Mac Catalyst SwiftUI) — polls Worker, drives lamp via HomeKit |
+| `mac-agent/` | Swift CLI `lamp-agent` — `--once` smoke-test harness for worker/file/shortcuts/homebridge backends |
 | `homebridge/` | Reference Homebridge config + setup notes |
 | `shared/` | Cross-module contracts (JSON schemas) |
 | `docs/` | Specs, plans, ops runbook |
@@ -28,7 +29,8 @@ and the [stage plans](docs/superpowers/plans/) for the staged build plan.
 
 Each module has its own README:
 - [`worker/README.md`](worker/README.md) — Worker setup, tests, deploy
-- [`mac-agent/README.md`](mac-agent/README.md) — Swift build, test, install
+- [`mac-app/README.md`](mac-app/README.md) — desktop app build, one-time HomeKit setup, run
+- [`mac-agent/README.md`](mac-agent/README.md) — Swift CLI build, test, smoke-test backends
 
 Operational setup (one-time, on the home Mac) lives in
 [`docs/ops/first-time-setup.md`](docs/ops/first-time-setup.md).
