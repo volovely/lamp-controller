@@ -34,10 +34,29 @@ obeys and the activity log shows it. Click **Stop**; polling halts.
   `~/.config/lamp-agent/config.toml` (already populated) and shows the key
   fields read-only. Editing remains file-based for now.
 - No menu-bar UI — a normal window app.
-- No removal of the CLI `lamp-agent` or the `homekit-helper`; both stay as
-  fallback/testing until the app is proven in daily use, then can be retired.
 - No new command source — the app polls the Worker (`command_source = "worker"`),
   same contract as Stage 2.
+
+## Disposition of the old run-paths (app replaces them)
+
+The desktop app is the **sole** runtime way to run the agent. As part of this
+work:
+- **`mac-agent/homekit-helper/`** is removed — the app controls HomeKit
+  in-process, so the per-command helper is obsolete. (Its working HomeKit logic
+  is lifted into `HomeKitController` first, then the helper directory is deleted.)
+- The CLI **`lamp-agent` executable target stays** (it's the smoke-test/`--once`
+  harness and exercises the same `LampAgent` core), but its `homekit` lamp
+  backend — which shells out to the now-deleted helper — is removed. The CLI is
+  no longer a supported *continuous-run* path; the app owns that. `shortcuts`
+  and `homebridge` backends remain for the CLI.
+- The launchd LaunchAgent (`Resources/com.lamp.agent.plist`, `scripts/install.sh`
+  / `uninstall.sh`) is removed — superseded by the app.
+- `config.toml`'s `homekit_helper_path` becomes unused and is dropped from the
+  example/docs; `homekit_accessory_name` is still used (now by the app).
+
+Sequencing: lift helper logic → build the app → verify the app drives the lamp →
+THEN delete the helper / launchd / CLI-homekit-backend, so we never have a
+window with no working path.
 
 ## Architecture
 
@@ -152,8 +171,11 @@ Worker KV ──GET /commands (bearer)──▶ WorkerCommandSource ──▶ Po
 
 ## Testing
 
-- **Reused core:** `mac-agent`'s 68 tests stay green (no source changes beyond
-  the Package.swift platform line).
+- **Reused core:** `mac-agent`'s core tests stay green. Removing the CLI's
+  `homekit` backend deletes `HomeKitClientTests` (the 5 helper-arg tests) and the
+  `homekit` case from `Config`/`ConfigTests`; everything else (Command, AckStore,
+  WorkerCommandSource, PollLoop, CommandExecutor, Config worker/file/shortcuts/
+  homebridge) stays. Net: the suite shrinks by the helper tests, stays green.
 - **New, unit-testable glue:** `LampClient.homeKit` maps a `LampState` to a
   single `controller.apply` call (test with a stub controller recording the
   state). `AppModel.start/stop` toggles `runState` and injects the right
@@ -194,5 +216,6 @@ build/test in CI via `mac-agent`.
 - **App icon / window polish** — minimal for v1; can refine later.
 - **Auto-start on launch / login item** — deferred; v1 requires a manual Start
   click each launch.
-- **Retiring the CLI + helper** — kept as fallback this iteration; remove once
-  the app is proven.
+- **CLI `--once` harness** — the `lamp-agent` executable is kept for
+  smoke-testing the core (worker/file/shortcuts/homebridge), but no longer drives
+  HomeKit; the app is the supported lamp path.
