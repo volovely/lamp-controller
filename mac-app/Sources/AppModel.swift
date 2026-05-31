@@ -61,21 +61,61 @@ final class AppModel {
         )
         let interval = config.pollIntervalSeconds
         runState = .running
-        log("started")
+        log("polling started (every \(interval)s)")
 
         task = Task { [weak self] in
             await withDependencies {
-                $0.lampClient = .homeKit { [weak controller] state in
+                $0.lampClient = .homeKit { [weak self, weak controller] state in
                     guard let controller else { throw ControllerUnavailable() }
                     try await controller.apply(state)
+                    let msg = state.power
+                        ? "lamp on — \(state.brightness)% \(state.colorTempK)K"
+                        : "lamp off"
+                    await self?.log(msg)
                 }
             } operation: {
-                do {
-                    try await loop.run(intervalSeconds: interval, isCancelled: { Task.isCancelled })
-                } catch is CancellationError {
-                    // expected on stop
-                } catch {
-                    await self?.log("loop error: \(error)")
+                // Drive the poll loop from AppModel so we can log each cycle's outcome.
+                // idleLogged prevents log spam: we only emit "waiting for commands…" once
+                // after a burst of activity (or on first idle after start).
+                var idleLogged = false
+                while !Task.isCancelled {
+                    do {
+                        let outcome = try await loop.runOnce()
+                        let hasActivity = !outcome.applied.isEmpty
+                            || !outcome.skippedStale.isEmpty
+                            || !outcome.invalid.isEmpty
+
+                        if hasActivity {
+                            // Log the command-level summary (lamp-state detail is logged
+                            // inside the lampClient closure above).
+                            if !outcome.applied.isEmpty {
+                                await self?.log("applied \(outcome.applied.count) command(s)")
+                            }
+                            if !outcome.skippedStale.isEmpty {
+                                await self?.log("dropped \(outcome.skippedStale.count) stale command(s)")
+                            }
+                            if !outcome.invalid.isEmpty {
+                                await self?.log("dropped \(outcome.invalid.count) invalid command(s)")
+                            }
+                            idleLogged = false
+                        } else if !idleLogged {
+                            await self?.log("waiting for commands…")
+                            idleLogged = true
+                        }
+
+                        if outcome.failed {
+                            await self?.log("poll error: executor failed (will retry)")
+                        }
+                    } catch is CancellationError {
+                        break
+                    } catch {
+                        await self?.log("poll error: \(error)")
+                    }
+                    do {
+                        try await Task.sleep(for: .seconds(interval))
+                    } catch {
+                        break
+                    }
                 }
             }
             await self?.markStopped()
