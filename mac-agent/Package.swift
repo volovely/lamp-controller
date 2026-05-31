@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "LampAgent",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v14), .iOS(.v17)],
     products: [
         .library(name: "LampAgent", targets: ["LampAgent"]),
         .executable(name: "lamp-agent", targets: ["lamp-agent"]),
