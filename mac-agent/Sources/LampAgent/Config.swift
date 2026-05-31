@@ -8,14 +8,23 @@ public struct Config: Equatable, Sendable {
         case homekit
     }
 
+    public enum CommandSourceKind: String, Sendable, Equatable {
+        case worker
+        case file
+    }
+
     public enum ConfigError: Error, Equatable {
         case missingKey(String)
         case invalidURL(String)
         case invalidBackend(String)
     }
 
-    public var commandsPath: String
+    public var commandsPath: String?
+    public var statePath: String
     public var pollIntervalSeconds: Int
+    public var commandSource: CommandSourceKind
+    public var workerURL: URL?
+    public var sharedSecret: String?
     public var lampBackend: Backend
     public var shortcutPrefix: String
     public var homebridgeURL: URL?
@@ -25,8 +34,12 @@ public struct Config: Equatable, Sendable {
     public var homekitAccessoryName: String?
 
     public init(
-        commandsPath: String,
+        commandsPath: String? = nil,
+        statePath: String,
         pollIntervalSeconds: Int,
+        commandSource: CommandSourceKind = .worker,
+        workerURL: URL? = nil,
+        sharedSecret: String? = nil,
         lampBackend: Backend = .homekit,
         shortcutPrefix: String = "Lamp",
         homebridgeURL: URL? = nil,
@@ -36,7 +49,11 @@ public struct Config: Equatable, Sendable {
         homekitAccessoryName: String? = nil
     ) {
         self.commandsPath = commandsPath
+        self.statePath = statePath
         self.pollIntervalSeconds = pollIntervalSeconds
+        self.commandSource = commandSource
+        self.workerURL = workerURL
+        self.sharedSecret = sharedSecret
         self.lampBackend = lampBackend
         self.shortcutPrefix = shortcutPrefix
         self.homebridgeURL = homebridgeURL
@@ -61,9 +78,49 @@ public struct Config: Equatable, Sendable {
             table[key]?.string
         }
 
-        let rawPath = try requireString("commands_path")
-        let path = (rawPath as NSString).expandingTildeInPath
         let pollInterval = try requireInt("poll_interval_s")
+
+        // command_source — optional, defaults to .worker
+        let commandSource: CommandSourceKind
+        if let raw = optionalString("command_source") {
+            guard let parsed = CommandSourceKind(rawValue: raw) else {
+                throw ConfigError.invalidBackend(raw)
+            }
+            commandSource = parsed
+        } else {
+            commandSource = .worker
+        }
+
+        // commands_path — required only for the file source
+        let commandsPath = optionalString("commands_path").map { ($0 as NSString).expandingTildeInPath }
+        if commandSource == .file, commandsPath == nil {
+            throw ConfigError.missingKey("commands_path")
+        }
+
+        // worker_url + shared_secret — required only for the worker source
+        let workerURLString = optionalString("worker_url")
+        let workerURL: URL?
+        if let workerURLString {
+            guard let url = URL(string: workerURLString) else {
+                throw ConfigError.invalidURL(workerURLString)
+            }
+            guard url.host != nil else {
+                throw ConfigError.invalidURL(workerURLString)
+            }
+            workerURL = url
+        } else {
+            workerURL = nil
+        }
+        let sharedSecret = optionalString("shared_secret")
+        if commandSource == .worker {
+            if workerURL == nil { throw ConfigError.missingKey("worker_url") }
+            if sharedSecret == nil { throw ConfigError.missingKey("shared_secret") }
+        }
+
+        // state_path — where acked.json lives; defaults under ~/.local/state
+        let statePath = (optionalString("state_path")
+            ?? "~/.local/state/lamp-agent/acked.json")
+        let expandedStatePath = (statePath as NSString).expandingTildeInPath
 
         // lamp_backend — optional, defaults to .homekit
         let backend: Backend
@@ -112,8 +169,12 @@ public struct Config: Equatable, Sendable {
         }
 
         return Config(
-            commandsPath: path,
+            commandsPath: commandsPath,
+            statePath: expandedStatePath,
             pollIntervalSeconds: pollInterval,
+            commandSource: commandSource,
+            workerURL: workerURL,
+            sharedSecret: sharedSecret,
             lampBackend: backend,
             shortcutPrefix: prefix,
             homebridgeURL: homebridgeURL,

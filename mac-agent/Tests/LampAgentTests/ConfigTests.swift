@@ -10,6 +10,7 @@ struct ConfigTests {
     @Test("parses a complete homebridge config.toml")
     func parsesAllHomebridge() throws {
         let toml = """
+        command_source   = "file"
         commands_path    = "/tmp/commands.json"
         poll_interval_s  = 12
         lamp_backend     = "homebridge"
@@ -32,6 +33,7 @@ struct ConfigTests {
     @Test("homekit backend is default when lamp_backend is absent (with required fields)")
     func homekitIsDefault() throws {
         let toml = """
+        command_source         = "file"
         commands_path          = "/tmp/commands.json"
         poll_interval_s        = 5
         homekit_helper_path    = "/Applications/LampHK.app"
@@ -47,6 +49,7 @@ struct ConfigTests {
     @Test("homekit backend without required fields throws missingKey")
     func homekitBackendMissingFields() throws {
         let toml = """
+        command_source  = "file"
         commands_path   = "/tmp/commands.json"
         poll_interval_s = 5
         """
@@ -56,6 +59,7 @@ struct ConfigTests {
     @Test("homekit backend missing accessory_name throws missingKey")
     func homekitBackendMissingAccessoryName() throws {
         let toml = """
+        command_source         = "file"
         commands_path          = "/tmp/commands.json"
         poll_interval_s        = 5
         lamp_backend           = "homekit"
@@ -69,6 +73,7 @@ struct ConfigTests {
     @Test("homekit backend missing helper_path throws missingKey")
     func homekitBackendMissingHelperPath() throws {
         let toml = """
+        command_source         = "file"
         commands_path          = "/tmp/commands.json"
         poll_interval_s        = 5
         lamp_backend           = "homekit"
@@ -82,6 +87,7 @@ struct ConfigTests {
     @Test("homekit backend parses with both required fields")
     func homekitBackendParses() throws {
         let toml = """
+        command_source         = "file"
         commands_path          = "/tmp/commands.json"
         poll_interval_s        = 10
         lamp_backend           = "homekit"
@@ -98,6 +104,7 @@ struct ConfigTests {
     @Test("tilde is expanded in homekit_helper_path")
     func homekitHelperPathTildeExpanded() throws {
         let toml = """
+        command_source         = "file"
         commands_path          = "/tmp/commands.json"
         poll_interval_s        = 5
         lamp_backend           = "homekit"
@@ -114,6 +121,7 @@ struct ConfigTests {
     @Test("shortcuts backend parses when explicitly set")
     func shortcutsExplicit() throws {
         let toml = """
+        command_source  = "file"
         commands_path   = "/tmp/commands.json"
         poll_interval_s = 5
         lamp_backend    = "shortcuts"
@@ -132,6 +140,7 @@ struct ConfigTests {
     @Test("custom shortcut_prefix is parsed")
     func customShortcutPrefix() throws {
         let toml = """
+        command_source  = "file"
         commands_path   = "/tmp/commands.json"
         poll_interval_s = 5
         lamp_backend    = "shortcuts"
@@ -148,6 +157,7 @@ struct ConfigTests {
     @Test("homebridge backend without homebridge fields throws")
     func homebridgeBackendMissingFields() throws {
         let toml = """
+        command_source  = "file"
         commands_path   = "/tmp/commands.json"
         poll_interval_s = 5
         lamp_backend    = "homebridge"
@@ -160,6 +170,7 @@ struct ConfigTests {
     @Test("unrecognized lamp_backend value throws invalidBackend")
     func unknownBackendThrows() throws {
         let toml = """
+        command_source  = "file"
         commands_path   = "/tmp/commands.json"
         poll_interval_s = 5
         lamp_backend    = "bogus"
@@ -172,20 +183,25 @@ struct ConfigTests {
     @Test("expands a leading ~ in commands_path")
     func expandsTilde() throws {
         let toml = """
+        command_source  = "file"
         commands_path   = "~/x/commands.json"
         poll_interval_s = 5
         lamp_backend    = "shortcuts"
         """
         let config = try Config.parse(toml)
-        #expect(!config.commandsPath.hasPrefix("~"))
-        #expect(config.commandsPath.hasSuffix("/x/commands.json"))
+        #expect(config.commandsPath?.hasPrefix("~") == false)
+        #expect(config.commandsPath?.hasSuffix("/x/commands.json") == true)
     }
 
     // MARK: - Missing required keys
 
-    @Test("missing commands_path throws missingKey")
+    @Test("file source without commands_path throws missingKey")
     func missingCommandsPathThrows() throws {
-        let toml = #"poll_interval_s = 5"#
+        let toml = """
+        command_source  = "file"
+        poll_interval_s = 5
+        lamp_backend    = "shortcuts"
+        """
         #expect(throws: Config.ConfigError.missingKey("commands_path")) {
             try Config.parse(toml)
         }
@@ -197,5 +213,81 @@ struct ConfigTests {
         #expect(throws: Config.ConfigError.missingKey("poll_interval_s")) {
             try Config.parse(toml)
         }
+    }
+
+    // MARK: - Command source selection
+
+    @Test("command_source defaults to worker and requires worker_url + shared_secret")
+    func commandSourceDefaultsWorker() throws {
+        let toml = """
+        poll_interval_s = 12
+        lamp_backend = "shortcuts"
+        worker_url = "https://lamp.example.workers.dev"
+        shared_secret = "s3cret"
+        """
+        let config = try Config.parse(toml)
+        #expect(config.commandSource == .worker)
+        #expect(config.workerURL == URL(string: "https://lamp.example.workers.dev")!)
+        #expect(config.sharedSecret == "s3cret")
+    }
+
+    @Test("worker command source without worker_url throws")
+    func workerMissingURL() {
+        let toml = """
+        poll_interval_s = 12
+        lamp_backend = "shortcuts"
+        shared_secret = "s3cret"
+        """
+        #expect(throws: Config.ConfigError.self) { try Config.parse(toml) }
+    }
+
+    @Test("worker command source without shared_secret throws")
+    func workerMissingSharedSecret() {
+        let toml = """
+        poll_interval_s = 12
+        lamp_backend = "shortcuts"
+        worker_url = "https://lamp.example.workers.dev"
+        """
+        #expect(throws: Config.ConfigError.missingKey("shared_secret")) {
+            try Config.parse(toml)
+        }
+    }
+
+    @Test("opaque (host-less) worker_url throws invalidURL")
+    func workerOpaqueURLThrows() {
+        let toml = """
+        poll_interval_s = 12
+        lamp_backend = "shortcuts"
+        worker_url = "opaque:value"
+        shared_secret = "s3cret"
+        """
+        #expect(throws: Config.ConfigError.self) { try Config.parse(toml) }
+    }
+
+    @Test("file command source requires commands_path")
+    func fileSourceParses() throws {
+        let toml = """
+        command_source = "file"
+        commands_path = "/tmp/commands.json"
+        poll_interval_s = 12
+        lamp_backend = "shortcuts"
+        """
+        let config = try Config.parse(toml)
+        #expect(config.commandSource == .file)
+        #expect(config.commandsPath == "/tmp/commands.json")
+    }
+
+    @Test("state_path defaults under the home dir and expands ~")
+    func statePathDefaultAndTilde() throws {
+        let toml = """
+        poll_interval_s = 12
+        lamp_backend = "shortcuts"
+        worker_url = "https://lamp.example.workers.dev"
+        shared_secret = "s3cret"
+        state_path = "~/x/acked.json"
+        """
+        let config = try Config.parse(toml)
+        #expect(!config.statePath.hasPrefix("~"))
+        #expect(config.statePath.hasSuffix("/x/acked.json"))
     }
 }

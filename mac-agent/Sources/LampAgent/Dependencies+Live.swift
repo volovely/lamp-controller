@@ -10,16 +10,21 @@ extension LampClient: DependencyKey {
 /// Builds the fully-wired runtime objects from a parsed `Config`.
 public enum Runtime {
     public static func makePollLoop(config: Config) -> PollLoop {
-        PollLoop(
-            source: .file(at: URL(fileURLWithPath: config.commandsPath)),
+        let source: CommandSource
+        switch config.commandSource {
+        case .worker:
+            // parse() guarantees these are present for the worker source.
+            source = .worker(
+                baseURL: config.workerURL!,
+                sharedSecret: config.sharedSecret!
+            )
+        case .file:
+            source = .file(at: URL(fileURLWithPath: config.commandsPath!))
+        }
+        return PollLoop(
+            source: source,
             executor: .live(),
-            ackStore: .file(at: ackedURL(forCommandsAt: config.commandsPath))
+            ackStore: .file(at: URL(fileURLWithPath: config.statePath))
         )
-    }
-
-    static func ackedURL(forCommandsAt commandsPath: String) -> URL {
-        URL(fileURLWithPath: commandsPath)
-            .deletingLastPathComponent()
-            .appendingPathComponent("acked.json")
     }
 }
