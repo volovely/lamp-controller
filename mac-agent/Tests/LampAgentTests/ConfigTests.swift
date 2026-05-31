@@ -241,6 +241,29 @@ struct ConfigTests {
         #expect(throws: Config.ConfigError.self) { try Config.parse(toml) }
     }
 
+    @Test("worker command source without shared_secret throws")
+    func workerMissingSharedSecret() {
+        let toml = """
+        poll_interval_s = 12
+        lamp_backend = "shortcuts"
+        worker_url = "https://lamp.example.workers.dev"
+        """
+        #expect(throws: Config.ConfigError.missingKey("shared_secret")) {
+            try Config.parse(toml)
+        }
+    }
+
+    @Test("opaque (host-less) worker_url throws invalidURL")
+    func workerOpaqueURLThrows() {
+        let toml = """
+        poll_interval_s = 12
+        lamp_backend = "shortcuts"
+        worker_url = "opaque:value"
+        shared_secret = "s3cret"
+        """
+        #expect(throws: Config.ConfigError.self) { try Config.parse(toml) }
+    }
+
     @Test("file command source requires commands_path")
     func fileSourceParses() throws {
         let toml = """

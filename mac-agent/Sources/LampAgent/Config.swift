@@ -104,6 +104,9 @@ public struct Config: Equatable, Sendable {
             guard let url = URL(string: workerURLString) else {
                 throw ConfigError.invalidURL(workerURLString)
             }
+            guard url.host != nil else {
+                throw ConfigError.invalidURL(workerURLString)
+            }
             workerURL = url
         } else {
             workerURL = nil

@@ -1,6 +1,20 @@
 # Copy to ~/.config/lamp-agent/config.toml and chmod 600.
 
-# Lamp control backend:
+# --- Command source: where the agent pulls commands from ---
+command_source  = "worker"          # "worker" (default) | "file"
+
+# worker source (Stage 2+): poll the Cloudflare Worker
+worker_url      = "https://lamp-controller.<subdomain>.workers.dev"
+shared_secret   = "REPLACE_WITH_MAC_SHARED_SECRET"   # identical to the Worker's MAC_SHARED_SECRET
+
+# applied-command ledger (dedup); defaults to ~/.local/state/lamp-agent/acked.json
+# state_path    = "~/.local/state/lamp-agent/acked.json"
+
+# file source (Stage 1, offline testing): read a local JSON array instead
+# command_source = "file"
+# commands_path  = "~/.local/state/lamp-agent/commands.json"
+
+# --- Lamp control backend ---
 #   "homekit"    (default) — launches the signed Mac Catalyst helper app at
 #                            homekit_helper_path; sends exact brightness (0–100)
 #                            and colour temperature (Kelvin) via Apple HomeKit.
@@ -17,7 +31,6 @@ lamp_backend = "homekit"
 homekit_helper_path    = "/path/to/mac-agent/homekit-helper/build/Build/Products/Debug-maccatalyst/LampHomeKitHelper.app"
 homekit_accessory_name = "Mijia desk lamp 1S"
 
-commands_path   = "~/.local/state/lamp-agent/commands.json"
 poll_interval_s = 12
 
 # Shortcuts backend (alternative): the agent runs 5 presets named

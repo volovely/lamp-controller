@@ -134,6 +134,49 @@ For a lamp bridged through Homebridge config-ui-x. Set `lamp_backend =
 "homebridge"` and provide `homebridge_url`, `homebridge_token`, `accessory_id`.
 See [`../homebridge/README.md`](../homebridge/README.md).
 
+## Command source
+
+The agent supports two command-source backends, selected by `command_source` in `config.toml`.
+
+### `worker` (default) — Cloudflare Worker queue
+
+The agent polls `GET /commands` on the Worker and acknowledges each command by
+calling `POST /ack`. Both requests carry `Authorization: Bearer <shared_secret>`.
+
+Required keys:
+
+```toml
+command_source = "worker"
+worker_url     = "https://lamp-controller.<subdomain>.workers.dev"
+shared_secret  = "REPLACE_WITH_MAC_SHARED_SECRET"
+```
+
+`shared_secret` must be the **same value** as the Worker's `MAC_SHARED_SECRET`
+environment secret. See [Stage 2 setup](../docs/ops/first-time-setup.md) for
+the `openssl rand` + `wrangler secret put` steps.
+
+An optional `state_path` key controls where the applied-command ledger
+(`acked.json`) lives; it defaults to `~/.local/state/lamp-agent/acked.json`
+and supports `~` expansion.
+
+Design details: [`docs/superpowers/specs/2026-05-31-stage-2-worker-queue-design.md`](../docs/superpowers/specs/2026-05-31-stage-2-worker-queue-design.md).
+
+### `file` (Stage 1 / offline testing) — local JSON array
+
+Reads commands from a local file. Useful when the Worker is not deployed or
+for offline development.
+
+Required key:
+
+```toml
+command_source = "file"
+commands_path  = "~/.local/state/lamp-agent/commands.json"
+```
+
+`worker_url` and `shared_secret` are ignored for this source.
+
+---
+
 ## Install (launchd)
 
 Installation as a launchd LaunchAgent is documented in

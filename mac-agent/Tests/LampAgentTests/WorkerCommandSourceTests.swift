@@ -111,4 +111,20 @@ struct WorkerCommandSourceTests {
         defer { Stub.handler = nil }
         await #expect(throws: (any Error).self) { try await self.source().ack(["a"]) }
     }
+
+    @Test("pending throws hostMismatch when response URL host differs from baseURL host")
+    func pendingHostMismatch() async {
+        let evilURL = URL(string: "https://evil.example.com/commands")!
+        Stub.handler = { _, _ in
+            let resp = HTTPURLResponse(url: evilURL, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            let body = """
+            {"commands":[]}
+            """.data(using: .utf8)!
+            return (resp, body)
+        }
+        defer { Stub.handler = nil }
+        await #expect(throws: CommandSource.WorkerError.hostMismatch) {
+            try await self.source().pending()
+        }
+    }
 }
