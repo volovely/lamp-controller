@@ -13,4 +13,4 @@ crons = ["* * * * *"]
 # then paste the returned id below (and a preview_id for `wrangler dev`).
 [[kv_namespaces]]
 binding = "COMMANDS"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "a0a047d07dd44a07bb0b103b48c75410"
