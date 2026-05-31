@@ -3,6 +3,8 @@ import Observation
 import Dependencies
 import LampAgent
 
+private struct ControllerUnavailable: Error {}
+
 @MainActor
 @Observable
 final class AppModel {
@@ -60,7 +62,7 @@ final class AppModel {
         task = Task { [weak self] in
             await withDependencies {
                 $0.lampClient = .homeKit { [weak controller] state in
-                    guard let controller else { return }
+                    guard let controller else { throw ControllerUnavailable() }
                     try await controller.apply(state)
                 }
             } operation: {

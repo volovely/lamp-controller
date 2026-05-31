@@ -24,7 +24,7 @@ struct ContentView: View {
                 model.runState == .running ? model.stop() : model.start()
             }
             .keyboardShortcut(.defaultAction)
-            .disabled(model.config == nil)
+            .disabled(startDisabled)
 
             Divider()
             Text("Activity").font(.headline)
@@ -39,6 +39,15 @@ struct ContentView: View {
             }
         }
         .padding()
+    }
+
+    private var startDisabled: Bool {
+        if model.runState == .running { return false }   // always allow Stop
+        if model.config == nil { return true }
+        switch model.homeKitController?.state {
+        case .denied, .loading, .none: return true
+        case .ready: return false
+        }
     }
 
     private func row(_ label: String, _ value: String) -> some View {
