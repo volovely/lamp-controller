@@ -25,6 +25,12 @@ final class AppModel {
     private var task: Task<Void, Never>?
     private var controller: HomeKitController?
 
+    /// Fired whenever runState / homeKitState / configError changes, so a
+    /// non-SwiftUI observer (MenuBarController) can rebuild the menu.
+    var onChange: (@MainActor () -> Void)?
+
+    private func notify() { onChange?() }
+
     // MARK: Config
 
     func loadConfig() {
@@ -34,7 +40,10 @@ final class AppModel {
             configError = nil
             if let name = config?.homekitAccessoryName {
                 let c = HomeKitController(accessoryName: name)
-                c.onStateChange = { [weak self] state in self?.homeKitState = state }
+                c.onStateChange = { [weak self] state in
+                    self?.homeKitState = state
+                    self?.notify()
+                }
                 homeKitState = c.state
                 controller = c
             }
@@ -42,6 +51,7 @@ final class AppModel {
             config = nil
             configError = "\(error)"
         }
+        notify()
     }
 
     var homeKitController: HomeKitController? { controller }
@@ -71,6 +81,7 @@ final class AppModel {
         let interval = config.pollIntervalSeconds
         runState = .running
         log("polling started (every \(interval)s)")
+        notify()
 
         task = Task { [weak self] in
             await withDependencies {
@@ -131,14 +142,30 @@ final class AppModel {
         }
     }
 
+    /// Called once at launch. Waits for HomeKit to finish loading, then starts
+    /// polling if config + HomeKit are ready. `start()` is idempotent, so a menu
+    /// click during this window cannot spawn a second loop.
+    func autoStart() {
+        Task { [weak self] in
+            guard let self else { return }
+            await self.homeKitController?.waitUntilLoaded()
+            if AppModel.shouldAutoStart(hasConfig: self.config != nil, homeKit: self.homeKitState) {
+                self.start()
+            }
+        }
+    }
+
     func stop() {
         task?.cancel()
         task = nil
         runState = .stopped
         log("stopped")
+        notify()
     }
 
-    private func markStopped() { if runState == .running { runState = .stopped } }
+    private func markStopped() {
+        if runState == .running { runState = .stopped; notify() }
+    }
 
     private func log(_ message: String) {
         @Dependency(\.date) var date
