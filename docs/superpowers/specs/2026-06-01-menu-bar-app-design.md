@@ -16,11 +16,21 @@ be kept frontmost for HomeKit writes to succeed; the menu-bar app removes that
 friction so it can run quietly in the background and auto-start on launch.
 
 **Demoable:** launch the app → a lamp icon appears in the menu bar with **no
-Dock icon and no window**; the app auto-starts polling (menu shows `● Running`);
+Dock icon**; the app auto-starts polling (menu shows `● Running`);
 insert a command with `wrangler kv put` → within one poll interval the lamp
-obeys and the Activity window (opened from the menu) shows it; **Stop**/**Start**
+obeys and the Activity window shows it; **Stop**/**Start**
 from the menu toggle polling; closing the Activity window keeps the app polling;
 **Quit** from the menu exits.
+
+> **Known limitation (discovered at implementation):** true *no-window-on-launch*
+> could not be delivered. SwiftUI's `defaultLaunchBehavior(.suppressed)` is marked
+> `@available(iOS, unavailable)` and the Mac Catalyst triple is `ios-macabi`, so it
+> fails to compile. As shipped, the **Activity window appears on launch** and can
+> be closed without quitting (polling continues headless via the status item); it
+> reopens from **Show Activity…**. Every other goal — no Dock icon, menu-bar
+> control, auto-start, background run, close-≠-quit — is met. A future workaround
+> (intercepting/destroying the initial scene in `AppDelegate`) is possible if the
+> launch window proves objectionable.
 
 ## Why this design
 
