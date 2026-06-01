@@ -1,27 +1,11 @@
 import SwiftUI
-import Darwin
 
 @main
 struct LampControllerApp: App {
     @State private var model = AppModel()
 
     init() {
-        // Spike: set AppKit activation policy to .accessory so the app has no
-        // Dock icon and behaves as a menu-bar-style process. We reach NSApplication
-        // via the ObjC runtime because this is Mac Catalyst (no direct AppKit import).
-        // NSApplicationActivationPolicyAccessory == 1
-        //
-        // setActivationPolicy: takes a primitive NSInteger. perform(_:with:) only
-        // handles object params, so we grab objc_msgSend via dlsym and cast it to
-        // the correct C function signature (AnyObject, Selector, Int) -> Bool.
-        if let appKitAppClass = NSClassFromString("NSApplication") as? NSObject.Type,
-           let sharedApp = appKitAppClass.value(forKey: "sharedApplication") as? NSObject,
-           let sym = dlsym(UnsafeMutableRawPointer(bitPattern: -2), "objc_msgSend") {
-            typealias SetPolicyFn = @convention(c) (AnyObject, Selector, Int) -> Bool
-            let fn = unsafeBitCast(sym, to: SetPolicyFn.self)
-            _ = fn(sharedApp, NSSelectorFromString("setActivationPolicy:"), 1)
-        }
-
+        AppKitBridge.setAccessoryActivationPolicy()
     }
 
     var body: some Scene {
