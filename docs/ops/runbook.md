@@ -6,8 +6,12 @@ What to do when things break. Populated progressively across stages.
 
 The lamp is controlled by the **Lamp Controller desktop app** (`mac-app/`), which
 runs on the home Mac, polls the Cloudflare Worker, and drives the lamp via
-in-process Apple HomeKit. There is no launchd daemon for the lamp agent — the app
-must be open and running (showing the **Stop** button / running indicator).
+in-process Apple HomeKit. There is no launchd daemon for the lamp agent — the app runs as a **menu-bar
+app** (💡 icon in the menu bar, no Dock icon) and **auto-starts polling** on
+launch. It must be running; click the 💡 menu and confirm it shows **●
+Running**. Use **Stop**/**Start** in that menu to control polling and **Quit**
+to exit. The Activity window appears on launch and can be closed without
+quitting (polling continues); reopen it from **Show Activity…**.
 
 ---
 
@@ -72,7 +76,7 @@ nearest of {25, 50, 100} and color to Warm/Neutral/Cool, so exact values are app
 ## Common checks
 
 - **Is the Worker alive?** `curl https://lamp-controller.<account>.workers.dev/health`
-- **Is the Lamp Controller app running?** The app window should be open on the home Mac and showing the **Stop** button (or a running indicator). If it was quit or the Mac restarted, reopen the app and click **Start**.
+- **Is the Lamp Controller app running?** Look for the 💡 icon in the menu bar on the home Mac; its menu should show **● Running**. If the icon is absent, the app was quit — relaunch it (it auto-starts). If it shows **○ Stopped**, click **Start**.
 - **Is the self-hosted runner online?** Repo Settings → Actions → Runners.
 
 ## Log locations
