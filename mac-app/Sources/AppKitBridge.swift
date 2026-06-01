@@ -17,6 +17,7 @@ enum AppKitBridge {
     /// Flip the process to NSApplicationActivationPolicyAccessory (== 1):
     /// no Dock icon, no window required, and — critically — foreground-active
     /// enough for HomeKit writes to succeed.
+    @MainActor
     static func setAccessoryActivationPolicy() {
         guard
             let appClass = NSClassFromString("NSApplication") as? NSObject.Type,
