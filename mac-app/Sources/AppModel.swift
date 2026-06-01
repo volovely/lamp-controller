@@ -46,6 +46,15 @@ final class AppModel {
 
     var homeKitController: HomeKitController? { controller }
 
+    /// Pure decision used by `autoStart()`. Auto-start only when config loaded
+    /// and HomeKit has finished loading into a `.ready` state. `start()` re-guards
+    /// worker config and is idempotent, so this stays minimal.
+    static func shouldAutoStart(hasConfig: Bool, homeKit: HomeKitController.State) -> Bool {
+        guard hasConfig else { return false }
+        if case .ready = homeKit { return true }
+        return false
+    }
+
     // MARK: Lifecycle
 
     func start() {
