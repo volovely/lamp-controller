@@ -21,6 +21,7 @@ struct LampControllerApp: App {
             let fn = unsafeBitCast(sym, to: SetPolicyFn.self)
             _ = fn(sharedApp, NSSelectorFromString("setActivationPolicy:"), 1)
         }
+
     }
 
     var body: some Scene {
@@ -28,6 +29,9 @@ struct LampControllerApp: App {
             ContentView(model: model)
                 .frame(minWidth: 420, minHeight: 360)
                 .onAppear {
+                    // Spike: install the status-bar item after the run loop is running
+                    // so that perform:afterDelay: timers fire correctly.
+                    StatusItemSpike.shared.install()
                     model.loadConfig()
                     // Spike: auto-start polling when launched with LAMP_SPIKE_AUTOSTART=1
                     if ProcessInfo.processInfo.environment["LAMP_SPIKE_AUTOSTART"] == "1" {
