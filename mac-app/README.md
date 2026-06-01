@@ -2,7 +2,8 @@
 
 A Mac Catalyst SwiftUI app that runs on the home Mac continuously as a
 **menu-bar app**: a 💡 icon appears in the macOS menu bar; there is **no Dock
-icon**. It polls the Cloudflare Worker for queued commands and applies each one
+icon**; an Activity window opens on launch and can be closed without quitting.
+It polls the Cloudflare Worker for queued commands and applies each one
 directly via Apple HomeKit — setting exact brightness (0–100) and colour
 temperature (Kelvin) with no preset snapping and no separate helper process.
 

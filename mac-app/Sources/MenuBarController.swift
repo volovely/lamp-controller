@@ -104,6 +104,9 @@ final class MenuBarController {
             Self.showActivityWindow()
         case .quit:
             model.stop()
+            // stop() cancels the poll task synchronously; an in-flight HomeKit write
+            // may not flush before exit. That's acceptable — an un-acked command
+            // simply retries on next launch. Do not add an await here (would block quit).
             exit(0)
         }
     }

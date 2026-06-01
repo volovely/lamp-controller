@@ -51,6 +51,10 @@ final class AppModel {
             config = nil
             configError = "\(error)"
         }
+        // Note: at first launch this fires before any observer wires `onChange`
+        // (AppDelegate calls loadConfig() before constructing MenuBarController),
+        // so the initial paint relies on MenuBarController.init calling rebuild()
+        // itself. Observers registered later (or in tests) do receive this.
         notify()
     }
 
