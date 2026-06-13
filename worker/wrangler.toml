@@ -3,10 +3,10 @@ main = "src/index.ts"
 compatibility_date = "2026-05-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Cron is wired up here so the schema validates; the handler is a no-op
-# until Stage 3 actually fetches Gmail.
-[triggers]
-crons = ["* * * * *"]
+# Secrets (set once via `wrangler secret put`, never in git):
+#   ANTHROPIC_API_KEY    — Claude Haiku 4.5 for intent extraction
+#   RELAY_SHARED_SECRET  — bearer the Apps Script relay sends to POST /ingest
+#   MAC_SHARED_SECRET    — bearer the Mac agent sends to GET /commands, POST /ack
 
 # Workers KV: command queue. Create with:
 #   wrangler kv namespace create COMMANDS

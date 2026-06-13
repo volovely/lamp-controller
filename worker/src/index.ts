@@ -1,16 +1,14 @@
 import { requireBearer } from "./auth";
+import { json } from "./http";
+import { handleIngest, type IngestDeps } from "./ingest";
 import { listCommands, deleteCommands } from "./kv";
+import { makeLlmClient, extractCommand } from "./llm";
 
 export interface Env {
   MAC_SHARED_SECRET: string;
+  RELAY_SHARED_SECRET: string;
+  ANTHROPIC_API_KEY: string;
   COMMANDS: KVNamespace;
-}
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
 }
 
 export default {
@@ -45,10 +43,16 @@ export default {
       return new Response(null, { status: 204 });
     }
 
-    return new Response("not found", { status: 404 });
-  },
+    if (request.method === "POST" && url.pathname === "/ingest") {
+      const client = makeLlmClient(env);
+      const deps: IngestDeps = {
+        extract: (body) => extractCommand(body, client),
+        uuid: () => crypto.randomUUID(),
+        now: () => new Date().toISOString(),
+      };
+      return handleIngest(request, env, deps);
+    }
 
-  async scheduled(): Promise<void> {
-    // No-op until Stage 3 (Gmail + LLM).
+    return new Response("not found", { status: 404 });
   },
 };

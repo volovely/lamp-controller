@@ -53,3 +53,32 @@ describe("requireBearer — misconfigured secret", () => {
     expect(res?.status).toBe(500);
   });
 });
+
+import { requireRelayBearer } from "../src/auth";
+
+function req(authHeader?: string) {
+  const headers = authHeader ? { Authorization: authHeader } : undefined;
+  return new Request("https://x/ingest", { method: "POST", headers });
+}
+
+describe("requireRelayBearer", () => {
+  it("500s when RELAY_SHARED_SECRET is empty (fails closed)", () => {
+    const res = requireRelayBearer(req("Bearer x"), { RELAY_SHARED_SECRET: "" } as any);
+    expect(res?.status).toBe(500);
+  });
+
+  it("401s without a token", () => {
+    const res = requireRelayBearer(req(), { RELAY_SHARED_SECRET: "relay-secret" } as any);
+    expect(res?.status).toBe(401);
+  });
+
+  it("401s on a wrong token", () => {
+    const res = requireRelayBearer(req("Bearer nope"), { RELAY_SHARED_SECRET: "relay-secret" } as any);
+    expect(res?.status).toBe(401);
+  });
+
+  it("returns null when the token matches", () => {
+    const res = requireRelayBearer(req("Bearer relay-secret"), { RELAY_SHARED_SECRET: "relay-secret" } as any);
+    expect(res).toBeNull();
+  });
+});

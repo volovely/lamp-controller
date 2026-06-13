@@ -1,5 +1,11 @@
+import { json } from "./http";
+
 export interface AuthEnv {
   MAC_SHARED_SECRET: string;
+}
+
+export interface RelayAuthEnv {
+  RELAY_SHARED_SECRET: string;
 }
 
 /** Constant-time string compare (avoids timing leaks on the token). */
@@ -13,24 +19,22 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 
 /**
- * Returns a 500 Response if the secret is unconfigured, a 401 Response if
- * the request lacks a valid bearer token, or null if the caller is authorized.
+ * Shared bearer check. Returns a 500 Response if the secret is unconfigured,
+ * a 401 Response if the request lacks a valid token, or null if authorized.
  */
-export function requireBearer(request: Request, env: AuthEnv): Response | null {
-  if (!env.MAC_SHARED_SECRET) {
-    return new Response(JSON.stringify({ error: "server misconfigured" }), {
-      status: 500,
-      headers: { "content-type": "application/json" },
-    });
-  }
+function bearerGuard(request: Request, secret: string): Response | null {
+  if (!secret) return json({ error: "server misconfigured" }, 500);
   const header = request.headers.get("Authorization") ?? "";
   const prefix = "Bearer ";
   const ok =
-    header.startsWith(prefix) &&
-    timingSafeEqual(header.slice(prefix.length), env.MAC_SHARED_SECRET);
-  if (ok) return null;
-  return new Response(JSON.stringify({ error: "unauthorized" }), {
-    status: 401,
-    headers: { "content-type": "application/json" },
-  });
+    header.startsWith(prefix) && timingSafeEqual(header.slice(prefix.length), secret);
+  return ok ? null : json({ error: "unauthorized" }, 401);
+}
+
+export function requireBearer(request: Request, env: AuthEnv): Response | null {
+  return bearerGuard(request, env.MAC_SHARED_SECRET);
+}
+
+export function requireRelayBearer(request: Request, env: RelayAuthEnv): Response | null {
+  return bearerGuard(request, env.RELAY_SHARED_SECRET);
 }

@@ -189,21 +189,29 @@ The app is not built in CI — signing requires the paid Apple Developer team.
 Verify: **System Settings → Privacy & Security → Home** — "Lamp Controller"
 should be listed and enabled.
 
-## 5. Gmail (Stage 3)
+## Stage 3 — Email + LLM (Apps Script relay)
 
-Not yet needed at Stage 0. When Stage 3 lands:
+Human steps to make email control live. Ingestion is the Apps Script relay
+(`gmail-relay/`), not IMAP/cron. See
+`docs/superpowers/specs/2026-06-13-stage-3-email-llm-design.md`.
 
-1. Enable 2-Step Verification on the Gmail account.
-2. Generate an App Password (16-char): https://myaccount.google.com/apppasswords
-3. `cd worker && wrangler secret put IMAP_APP_PASSWORD`.
+1. **Anthropic API key.** Create a key at the Anthropic Console, then:
+   `cd worker && wrangler secret put ANTHROPIC_API_KEY`.
+2. **Relay shared secret.** Generate a 256-bit secret
+   (`openssl rand -hex 32`). Set it on the Worker:
+   `wrangler secret put RELAY_SHARED_SECRET`. Keep the value — the relay needs it.
+3. **Deploy the Worker** (so `/ingest` is live): `wrangler deploy` (or via
+   `deploy-worker.yml` once the runner is registered).
+4. **Set up the relay** following `gmail-relay/README.md`: paste `Code.gs`, set
+   `WORKER_URL` + `RELAY_SECRET` (= the secret from step 2) in Script Properties,
+   add the 1-minute `pollLamp` trigger, and click through the one-time
+   unverified-app consent.
+5. **Demo:** email `v.lamp.controller@gmail.com` subject `lamp`, body
+   `on, warm, 30%`. Within ~90s the lamp turns on at 30% warm.
 
-## 6. Anthropic API key (Stage 3)
-
-Not yet needed at Stage 0. When Stage 3 lands:
-
-1. Sign in at https://console.anthropic.com.
-2. Create an API key.
-3. `cd worker && wrangler secret put ANTHROPIC_API_KEY`.
+> No `IMAP_*` and no OAuth tokens are used. Gmail credentials never leave Google.
+> Stage 3 has **no sender allowlist** (accepted residual risk); attachment
+> validation + allowlist land in Stage 4.
 
 ## 7. Homebridge (Stage 1)
 

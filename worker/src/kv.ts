@@ -34,3 +34,21 @@ export async function listCommands(env: KVEnv): Promise<Command[]> {
 export async function deleteCommands(env: KVEnv, ids: string[]): Promise<void> {
   await Promise.all(ids.map((id) => env.COMMANDS.delete(`${PREFIX}${id}`)));
 }
+
+const SEEN_PREFIX = "seen:";
+const SEEN_TTL_SECONDS = 86400; // 24h — idempotency backstop; relay mark-read is the primary guard
+
+/** Writes command:<id> with the serialized command. */
+export async function putCommand(env: KVEnv, command: Command): Promise<void> {
+  await env.COMMANDS.put(`${PREFIX}${command.id}`, JSON.stringify(command));
+}
+
+/** True if this Gmail message has already been accepted or rejected. */
+export async function hasSeen(env: KVEnv, msgId: string): Promise<boolean> {
+  return (await env.COMMANDS.get(`${SEEN_PREFIX}${msgId}`)) !== null;
+}
+
+/** Records that this Gmail message was handled, with a TTL so the table self-prunes. */
+export async function markSeen(env: KVEnv, msgId: string): Promise<void> {
+  await env.COMMANDS.put(`${SEEN_PREFIX}${msgId}`, "1", { expirationTtl: SEEN_TTL_SECONDS });
+}
