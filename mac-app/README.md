@@ -66,7 +66,10 @@ Home** — "Lamp Controller" should be listed and enabled.
 ```bash
 cd mac-app
 brew install xcodegen            # if not already installed
-export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+# DEVELOPER_DIR must point at a full Xcode, not the Command Line Tools.
+# Find the installed Xcode: ls -d /Applications/Xcode*.app
+# (on this Mac it is Xcode-beta.app, so the path is below)
+export DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer
 xcodegen generate
 open LampController.xcodeproj   # then ⌘R to build and run
 ```
