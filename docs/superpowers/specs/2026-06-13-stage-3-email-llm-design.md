@@ -105,6 +105,7 @@ Response (200 for `queued`/`duplicate`/`unparseable`; 5xx for `error`; relay act
 
 - **Auth fails closed:** empty/missing `RELAY_SHARED_SECRET`, or mismatched bearer → 401. Same posture as the existing `/commands` check.
 - `unparseable` reply text: `"Couldn't understand that command. Try e.g. 'on, warm, 30%'."`
+- **Write ordering on `queued`:** write `command:<uuid>` *first* — if it throws, return `error`/5xx (nothing committed; relay retries cleanly). Then write `seen:<msgId>` **best-effort**: if *that* throws, still return `queued`/200, because the command is already durably stored and re-running the request would write a second command. The relay's mark-read is the primary dedupe guard; the `seen:` write is the belt-and-braces backstop. On the `unparseable` path the `seen:` write is the only side effect, so if it throws, return `error`/5xx and let the relay retry (nothing is committed, and we avoid replying + marking-read against unrecorded state).
 
 **LLM extraction (`worker/src/llm.ts`)**
 
@@ -116,8 +117,8 @@ Response (200 for `queued`/`duplicate`/`unparseable`; 5xx for `error`; relay act
 
 ## Idempotency
 
-- `seen:<msgId>` is written to KV (TTL ~24h) when a message is accepted (`queued`) or rejected (`unparseable`), so reprocessing is suppressed even if the relay's mark-read fails.
-- Relay mark-read is the primary guard; KV `seen:` is belt-and-braces against double-delivery or partial failure.
+- `seen:<msgId>` is written to KV (TTL ~24h) when a message is accepted (`queued`) or rejected (`unparseable`), suppressing reprocessing on double-delivery.
+- **Relay mark-read is the primary dedupe guard; KV `seen:` is belt-and-braces.** On the `queued` path the `seen:` write is best-effort (see Write ordering above): a failed `seen:` write does not fail the request, because the command is already committed and retrying would duplicate it. A duplicate command is harmless anyway — the same `LampState` applies idempotently downstream. On the `unparseable` path `seen:` is the only side effect, so a failed write returns 5xx and the relay retries.
 - Each queued command gets a fresh UUIDv4. Downstream idempotency (Mac acked set, idempotent lamp apply, 10-min stale guard) is unchanged from Stage 2.
 
 ## Failure handling (additions to the base spec)
@@ -125,8 +126,9 @@ Response (200 for `queued`/`duplicate`/`unparseable`; 5xx for `error`; relay act
 | Failure | Behavior |
 |---|---|
 | Anthropic unreachable / 5xx | Worker returns `error` + HTTP 5xx; relay leaves message unread; retried next tick. No KV write. |
-| LLM malformed twice | `unparseable` + reply + mark read + `seen:` write. |
-| KV write fails | `error` + 5xx; relay leaves unread; retried next tick. |
+| LLM malformed twice | `unparseable` + `seen:` write + reply + mark read. If the `seen:` write fails → `error` + 5xx (relay retries; nothing committed). |
+| `command:` write fails (`queued`) | `error` + 5xx; no `seen:` write; relay leaves unread; retried next tick. |
+| `seen:` write fails *after* a successful `command:` write (`queued`) | Still return `queued`/200 (command committed; relay mark-read dedupes). The failed `seen:` is logged, non-fatal. |
 | Relay → Worker POST fails / network | Relay logs, leaves message unread, continues; retried next tick. |
 | Duplicate delivery / double trigger | `seen:<msgId>` → `duplicate`; relay marks read; no second command. |
 | Non-`lamp` unread mail | Not matched by the relay query; left untouched/unread. |
