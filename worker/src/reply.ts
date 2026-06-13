@@ -8,7 +8,7 @@ function normaliseRequest(body: string): string {
 /** Truncate to 200 chars, appending "…" when truncation occurs. */
 function truncate(text: string): string {
   if (text.length <= 200) return text;
-  return text.slice(0, 200) + "…"; // …
+  return text.slice(0, 200) + "…";
 }
 
 /** Format the first line that echoes the original request body. */

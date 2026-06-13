@@ -102,6 +102,14 @@ describe("formatQueuedReply — on/set command", () => {
     expect(lines[1]).toBe("Got response from the model — on, brightness 80, color 5000K (cool)");
     expect(lines[2]).toBe("Executing — turning the lamp on at 80%, cool (5000K)");
   });
+
+  it("set with brightness 0 — zero is treated as a valid brightness value", () => {
+    const cmd: LlmCommand = { action: "set", brightness: 0 };
+    const result = formatQueuedReply("dim to zero", cmd);
+    const lines = result.split("\n");
+    expect(lines[1]).toBe("Got response from the model — set, brightness 0");
+    expect(lines[2]).toBe("Executing — turning the lamp on at 0%");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -110,44 +118,58 @@ describe("formatQueuedReply — on/set command", () => {
 describe("formatQueuedReply — kelvin word mapping", () => {
   it("3000 K → warm", () => {
     const cmd: LlmCommand = { action: "set", color_temp_k: 3000 };
-    const result = formatQueuedReply("warm", cmd);
-    expect(result).toContain("warm");
+    const result = formatQueuedReply("test", cmd);
+    const lines = result.split("\n");
+    expect(lines[1]).toContain("warm");
+    expect(lines[2]).toContain("warm");
   });
 
   it("3001 K → neutral", () => {
     const cmd: LlmCommand = { action: "set", color_temp_k: 3001 };
     const result = formatQueuedReply("test", cmd);
-    expect(result).toContain("neutral");
+    const lines = result.split("\n");
+    expect(lines[1]).toContain("neutral");
+    expect(lines[2]).toContain("neutral");
   });
 
   it("4500 K → neutral", () => {
     const cmd: LlmCommand = { action: "set", color_temp_k: 4500 };
     const result = formatQueuedReply("test", cmd);
-    expect(result).toContain("neutral");
+    const lines = result.split("\n");
+    expect(lines[1]).toContain("neutral");
+    expect(lines[2]).toContain("neutral");
   });
 
   it("4501 K → cool", () => {
     const cmd: LlmCommand = { action: "set", color_temp_k: 4501 };
     const result = formatQueuedReply("test", cmd);
-    expect(result).toContain("cool");
+    const lines = result.split("\n");
+    expect(lines[1]).toContain("cool");
+    expect(lines[2]).toContain("cool");
   });
 
   it("5500 K → cool", () => {
     const cmd: LlmCommand = { action: "set", color_temp_k: 5500 };
     const result = formatQueuedReply("test", cmd);
-    expect(result).toContain("cool");
+    const lines = result.split("\n");
+    expect(lines[1]).toContain("cool");
+    expect(lines[2]).toContain("cool");
   });
 
   it("5501 K → daylight", () => {
     const cmd: LlmCommand = { action: "set", color_temp_k: 5501 };
     const result = formatQueuedReply("test", cmd);
-    expect(result).toContain("daylight");
+    const lines = result.split("\n");
+    expect(lines[1]).toContain("daylight");
+    expect(lines[2]).toContain("daylight");
   });
 
   it("6500 K → daylight", () => {
     const cmd: LlmCommand = { action: "set", color_temp_k: 6500 };
     const result = formatQueuedReply("test", cmd);
-    expect(result).toContain("daylight");
+    const lines = result.split("\n");
+    expect(lines[1]).toContain("daylight");
+    expect(lines[2]).toContain("daylight");
   });
 });
 
@@ -168,5 +190,23 @@ describe("request text normalisation in formatQueuedReply", () => {
     const result = formatQueuedReply(long, cmd);
     const lines = result.split("\n");
     expect(lines[0]).toBe(`Got request — "${"x".repeat(200)}…"`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Empty-string request body
+// ---------------------------------------------------------------------------
+describe("empty-string request body", () => {
+  it("formatUnparseableReply echoes empty string verbatim", () => {
+    const result = formatUnparseableReply("");
+    const lines = result.split("\n");
+    expect(lines[0]).toBe('Got request — ""');
+  });
+
+  it("formatQueuedReply echoes empty string verbatim", () => {
+    const cmd: LlmCommand = { action: "on" };
+    const result = formatQueuedReply("", cmd);
+    const lines = result.split("\n");
+    expect(lines[0]).toBe('Got request — ""');
   });
 });
