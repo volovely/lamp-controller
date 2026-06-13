@@ -119,11 +119,14 @@ describe("POST /ingest", () => {
 
   it("returns 502 error when putCommand throws, and does NOT write seen:", async () => {
     const kv = fakeKVThrowingOn("command:");
-    const res = await handleIngest(post(validBody), env(kv), deps());
+    let extractCalled = false;
+    const res = await handleIngest(post(validBody), env(kv),
+      deps({ extract: async (t) => { extractCalled = true; return { action: "on", brightness: 30 } as LlmCommand; } }));
     expect(res.status).toBe(502);
     const b = await body(res);
     expect(b.status).toBe("error");
     expect(b).not.toHaveProperty("command");
+    expect(extractCalled).toBe(true); // extract was called before putCommand threw
     expect([...kv.store.keys()].some((k) => k.startsWith("command:"))).toBe(false);
     expect(kv.store.get("seen:m1")).toBeUndefined();
   });
@@ -154,5 +157,20 @@ describe("POST /ingest", () => {
     expect(extractCalledWith).toBe("");
     const b = await body(res);
     expect(b.status).toBe("unparseable");
+    // seen:m2 must be written on the unparseable path so double-delivery is suppressed
+    expect(kv.store.get("seen:m2")).toBe("1");
+  });
+
+  it("returns 502 error and does NOT write seen: when markSeen throws on unparseable path", async () => {
+    const kv = fakeKVThrowingOn("seen:");
+    const res = await handleIngest(post(validBody), env(kv),
+      deps({ extract: async () => null }));
+    expect(res.status).toBe(502);
+    const b = await body(res);
+    expect(b.status).toBe("error");
+    expect(b.reply).toBeNull();
+    // nothing committed — no command: key, no seen: key
+    expect([...kv.store.keys()].some((k) => k.startsWith("command:"))).toBe(false);
+    expect(kv.store.get("seen:m1")).toBeUndefined();
   });
 });

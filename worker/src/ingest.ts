@@ -51,12 +51,14 @@ export async function handleIngest(
   }
 
   if (extracted === null) {
-    // Best-effort: relay mark-read is the primary dedupe guard here; there is no
-    // command to lose, so a failed seen: write must not turn this into a 5xx.
+    // On the unparseable path nothing is committed yet. If the seen: write fails,
+    // return 5xx so the relay leaves the message unread and retries — we avoid
+    // replying + marking read against unrecorded state.
     try {
       await markSeen(env, msgId);
     } catch (err) {
-      console.log(JSON.stringify({ level: "warn", msg: "markSeen failed on unparseable path", msgId, err: String(err) }));
+      console.log(JSON.stringify({ level: "error", msg: "markSeen failed on unparseable path", msgId, err: String(err) }));
+      return json({ status: "error", reply: null }, 502);
     }
     return json({ status: "unparseable", reply: UNPARSEABLE_REPLY });
   }
