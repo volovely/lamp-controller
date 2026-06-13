@@ -26,3 +26,29 @@ export function parseLlmToolUse(raw: unknown): LlmCommand | null {
   const result = LlmCommandSchema.safeParse(candidate);
   return result.success ? result.data : null;
 }
+
+export interface LlmClient {
+  /**
+   * Returns the model's raw tool-use input object (or null if the model produced
+   * no usable tool call). Throws on transport / API errors so the caller can
+   * distinguish "couldn't reach the model" from "model produced garbage".
+   */
+  complete(emailBody: string, strict: boolean): Promise<unknown>;
+}
+
+/**
+ * Extract a command from the email body. Tries once normally; on an invalid
+ * result, retries once with a stricter instruction. Returns null if both
+ * attempts fail to validate. Re-throws transport errors from the client.
+ */
+export async function extractCommand(
+  emailBody: string,
+  client: LlmClient,
+): Promise<LlmCommand | null> {
+  for (const strict of [false, true]) {
+    const raw = await client.complete(emailBody, strict);
+    const command = parseLlmToolUse(raw);
+    if (command) return command;
+  }
+  return null;
+}
