@@ -12,7 +12,20 @@ function fakeKV(initial: Record<string, string> = {}) {
   return {
     store,
     async get(key: string) { return store.get(key) ?? null; },
-    async put(key: string, value: string) { store.set(key, value); },
+    async put(key: string, value: string, _options?: unknown) { store.set(key, value); },
+  };
+}
+
+/** A fakeKV whose put throws for keys matching a prefix. */
+function fakeKVThrowingOn(prefix: string, initial: Record<string, string> = {}) {
+  const store = new Map(Object.entries(initial));
+  return {
+    store,
+    async get(key: string) { return store.get(key) ?? null; },
+    async put(key: string, value: string, _options?: unknown) {
+      if (key.startsWith(prefix)) throw new Error(`simulated KV error for ${key}`);
+      store.set(key, value);
+    },
   };
 }
 
@@ -102,5 +115,44 @@ describe("POST /ingest", () => {
     const json = await body(res);
     expect(json.status).toBe("error");
     expect(kv.store.get("seen:m1")).toBeUndefined();
+  });
+
+  it("returns 502 error when putCommand throws, and does NOT write seen:", async () => {
+    const kv = fakeKVThrowingOn("command:");
+    const res = await handleIngest(post(validBody), env(kv), deps());
+    expect(res.status).toBe(502);
+    const b = await body(res);
+    expect(b.status).toBe("error");
+    expect(b).not.toHaveProperty("command");
+    expect([...kv.store.keys()].some((k) => k.startsWith("command:"))).toBe(false);
+    expect(kv.store.get("seen:m1")).toBeUndefined();
+  });
+
+  it("returns 200 queued when markSeen throws, because command is already written", async () => {
+    const kv = fakeKVThrowingOn("seen:");
+    const res = await handleIngest(post(validBody), env(kv), deps());
+    expect(res.status).toBe(200);
+    const b = await body(res);
+    expect(b.status).toBe("queued");
+    expect(b.command).toEqual({ action: "on", brightness: 30 });
+    // command: key was written successfully before markSeen was attempted
+    expect([...kv.store.keys()].some((k) => k.startsWith("command:"))).toBe(true);
+    // seen: write failed, but that is non-fatal
+    expect(kv.store.get("seen:m1")).toBeUndefined();
+  });
+
+  it("accepts an empty-string body and reaches extract (body is not required non-empty)", async () => {
+    let extractCalledWith: string | undefined;
+    const kv = fakeKV();
+    const res = await handleIngest(
+      post({ msgId: "m2", body: "" }),
+      env(kv),
+      deps({ extract: async (t) => { extractCalledWith = t; return null; } }),
+    );
+    // Not a 400 — empty body is allowed; the LLM may handle it
+    expect(res.status).toBe(200);
+    expect(extractCalledWith).toBe("");
+    const b = await body(res);
+    expect(b.status).toBe("unparseable");
   });
 });

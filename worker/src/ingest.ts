@@ -51,7 +51,13 @@ export async function handleIngest(
   }
 
   if (extracted === null) {
-    await markSeen(env, msgId);
+    // Best-effort: relay mark-read is the primary dedupe guard here; there is no
+    // command to lose, so a failed seen: write must not turn this into a 5xx.
+    try {
+      await markSeen(env, msgId);
+    } catch (err) {
+      console.log(JSON.stringify({ level: "warn", msg: "markSeen failed on unparseable path", msgId, err: String(err) }));
+    }
     return json({ status: "unparseable", reply: UNPARSEABLE_REPLY });
   }
 
@@ -61,7 +67,23 @@ export async function handleIngest(
     created_at: deps.now(),
     source_msg_id: msgId,
   };
-  await putCommand(env, command);
-  await markSeen(env, msgId);
+
+  // Step 1 — write the command first. If this fails, return 5xx and leave the
+  // message unread so the relay retries cleanly next tick.
+  try {
+    await putCommand(env, command);
+  } catch (err) {
+    console.log(JSON.stringify({ level: "error", msg: "putCommand failed", msgId, err: String(err) }));
+    return json({ status: "error", reply: null }, 502);
+  }
+
+  // Step 2 — best-effort seen: write. The command is already queued; relay
+  // mark-read on this 200 is the primary dedupe guard, so a failed seen: write
+  // must not fail the request or trigger a retry that would double-queue.
+  try {
+    await markSeen(env, msgId);
+  } catch (err) {
+    console.log(JSON.stringify({ level: "warn", msg: "markSeen failed on queued path", msgId, err: String(err) }));
+  }
   return json({ status: "queued", command: extracted, reply: null });
 }
