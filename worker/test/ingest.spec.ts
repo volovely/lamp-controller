@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { handleIngest, type IngestDeps } from "../src/ingest";
 import type { LlmCommand } from "../src/schema";
 
+/** Parse a Response body as a plain record (tests only — we control all responses). */
+async function body(res: Response): Promise<Record<string, unknown>> {
+  return (await res.json()) as Record<string, unknown>;
+}
+
 function fakeKV(initial: Record<string, string> = {}) {
   const store = new Map(Object.entries(initial));
   return {
@@ -54,7 +59,7 @@ describe("POST /ingest", () => {
     const kv = fakeKV();
     const res = await handleIngest(post(validBody), env(kv), deps());
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await body(res);
     expect(json.status).toBe("queued");
     expect(json.command).toEqual({ action: "on", brightness: 30 });
     expect(json.reply).toBeNull();
@@ -70,7 +75,7 @@ describe("POST /ingest", () => {
     let extractCalled = false;
     const res = await handleIngest(post(validBody), env(kv),
       deps({ extract: async () => { extractCalled = true; return null; } }));
-    const json = await res.json();
+    const json = await body(res);
     expect(json.status).toBe("duplicate");
     expect(res.status).toBe(200);
     expect(extractCalled).toBe(false); // dedupe short-circuits before the LLM
@@ -82,7 +87,7 @@ describe("POST /ingest", () => {
     const res = await handleIngest(post(validBody), env(kv),
       deps({ extract: async () => null }));
     expect(res.status).toBe(200);
-    const json = await res.json();
+    const json = await body(res);
     expect(json.status).toBe("unparseable");
     expect(json.reply).toMatch(/couldn't understand/i);
     expect(kv.store.get("seen:m1")).toBe("1");
@@ -94,7 +99,7 @@ describe("POST /ingest", () => {
     const res = await handleIngest(post(validBody), env(kv),
       deps({ extract: async () => { throw new Error("anthropic 529"); } }));
     expect(res.status).toBe(502);
-    const json = await res.json();
+    const json = await body(res);
     expect(json.status).toBe("error");
     expect(kv.store.get("seen:m1")).toBeUndefined();
   });
