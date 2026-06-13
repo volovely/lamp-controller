@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         AppKitBridge.setAccessoryActivationPolicy()
+        AppKitBridge.preventTerminationOnLastWindowClose()
         model.loadConfig()
         menuBar = MenuBarController(model: model)
         model.autoStart()
