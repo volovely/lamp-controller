@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseLlmToolUse, extractCommand, type LlmClient } from "../src/llm";
+import { parseLlmToolUse, extractCommand, makeLlmClient, type LlmClient } from "../src/llm";
 
 describe("parseLlmToolUse", () => {
   it("passes through a valid on command", () => {
@@ -71,5 +71,53 @@ describe("extractCommand", () => {
       async complete() { throw new Error("anthropic 500"); },
     };
     await expect(extractCommand("on", client)).rejects.toThrow("anthropic 500");
+  });
+});
+
+function fakeFetch(impl: (url: string, init: RequestInit) => Response) {
+  const calls: Array<{ url: string; init: RequestInit }> = [];
+  const fn = (async (url: unknown, init: unknown) => {
+    calls.push({ url: String(url), init: init as RequestInit });
+    return impl(String(url), init as RequestInit);
+  }) as unknown as typeof fetch;
+  return Object.assign(fn, { calls });
+}
+
+const env = { ANTHROPIC_API_KEY: "sk-test" } as { ANTHROPIC_API_KEY: string };
+
+describe("makeLlmClient", () => {
+  it("posts to the Messages API with model, auth headers, and forced tool use", async () => {
+    const f = fakeFetch(() =>
+      new Response(JSON.stringify({
+        content: [{ type: "tool_use", name: "set_lamp", input: { action: "on", brightness: 40 } }],
+      }), { status: 200 }),
+    );
+    const client = makeLlmClient(env, f);
+    const out = await client.complete("on 40%", false);
+
+    expect(out).toEqual({ action: "on", brightness: 40 });
+    const call = f.calls[0];
+    if (!call) throw new Error("expected a fetch call");
+    const { url, init } = call;
+    expect(url).toBe("https://api.anthropic.com/v1/messages");
+    const headers = init.headers as Record<string, string>;
+    expect(headers["x-api-key"]).toBe("sk-test");
+    expect(headers["anthropic-version"]).toBe("2023-06-01");
+    const body = JSON.parse(init.body as string);
+    expect(body.model).toBe("claude-haiku-4-5");
+    expect(body.tool_choice).toEqual({ type: "tool", name: "set_lamp" });
+    expect(body.messages).toEqual([{ role: "user", content: "on 40%" }]);
+  });
+
+  it("returns null when the model emits no set_lamp tool_use", async () => {
+    const f = fakeFetch(() =>
+      new Response(JSON.stringify({ content: [{ type: "text", text: "huh?" }] }), { status: 200 }),
+    );
+    expect(await makeLlmClient(env, f).complete("???", false)).toBeNull();
+  });
+
+  it("throws on a non-2xx response", async () => {
+    const f = fakeFetch(() => new Response("overloaded", { status: 529 }));
+    await expect(makeLlmClient(env, f).complete("on", false)).rejects.toThrow(/529/);
   });
 });
