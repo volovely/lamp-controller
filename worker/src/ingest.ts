@@ -36,8 +36,13 @@ export async function handleIngest(
 
   // Dedupe before spending an LLM call. Relay mark-read is the primary guard;
   // seen:<msgId> is belt-and-braces for double-delivery or partial failure.
-  if (await hasSeen(env, msgId)) {
-    return json({ status: "duplicate", reply: null });
+  try {
+    if (await hasSeen(env, msgId)) {
+      return json({ status: "duplicate", reply: null });
+    }
+  } catch (err) {
+    console.log(JSON.stringify({ level: "error", msg: "hasSeen KV read failed", msgId, err: String(err) }));
+    return json({ status: "error", reply: null }, 502);
   }
 
   let extracted: LlmCommand | null;

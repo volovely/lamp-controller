@@ -16,14 +16,17 @@ function fakeKV(initial: Record<string, string> = {}) {
   };
 }
 
-/** A fakeKV whose put throws for keys matching a prefix. */
-function fakeKVThrowingOn(prefix: string, initial: Record<string, string> = {}) {
+/** A fakeKV whose get or put throws for keys matching a prefix. */
+function fakeKVThrowingOn(prefix: string, initial: Record<string, string> = {}, { throwOnGet = false } = {}) {
   const store = new Map(Object.entries(initial));
   return {
     store,
-    async get(key: string) { return store.get(key) ?? null; },
+    async get(key: string) {
+      if (throwOnGet && key.startsWith(prefix)) throw new Error(`simulated KV get error for ${key}`);
+      return store.get(key) ?? null;
+    },
     async put(key: string, value: string, _options?: unknown) {
-      if (key.startsWith(prefix)) throw new Error(`simulated KV error for ${key}`);
+      if (!throwOnGet && key.startsWith(prefix)) throw new Error(`simulated KV error for ${key}`);
       store.set(key, value);
     },
   };
@@ -93,6 +96,18 @@ describe("POST /ingest", () => {
     expect(res.status).toBe(200);
     expect(extractCalled).toBe(false); // dedupe short-circuits before the LLM
     expect([...kv.store.keys()].some((k) => k.startsWith("command:"))).toBe(false);
+  });
+
+  it("returns 502 and status=error when hasSeen KV read throws, and does NOT call extract", async () => {
+    const kv = fakeKVThrowingOn("seen:", {}, { throwOnGet: true });
+    let extractCalled = false;
+    const res = await handleIngest(post(validBody), env(kv),
+      deps({ extract: async () => { extractCalled = true; return null; } }));
+    expect(res.status).toBe(502);
+    const b = await body(res);
+    expect(b.status).toBe("error");
+    expect(b.reply).toBeNull();
+    expect(extractCalled).toBe(false);
   });
 
   it("returns unparseable + a reply and marks seen when extraction fails", async () => {
