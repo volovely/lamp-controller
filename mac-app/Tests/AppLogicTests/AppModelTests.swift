@@ -37,6 +37,26 @@ struct AppModelTests {
         #expect(box.states == [LampState(power: true, brightness: 30, colorTempK: 2700)])
     }
 
+    @Test("shouldAutoStart: true only when config present and HomeKit ready")
+    func autoStartDecision() {
+        // ready + has config -> start
+        #expect(AppModel.shouldAutoStart(
+            hasConfig: true,
+            homeKit: .ready(accessoryCount: 1, accessoryFound: true)) == true)
+        // ready but accessory missing -> still start (polling logs the miss, retries)
+        #expect(AppModel.shouldAutoStart(
+            hasConfig: true,
+            homeKit: .ready(accessoryCount: 1, accessoryFound: false)) == true)
+        // denied -> no
+        #expect(AppModel.shouldAutoStart(hasConfig: true, homeKit: .denied) == false)
+        // still loading -> no
+        #expect(AppModel.shouldAutoStart(hasConfig: true, homeKit: .loading) == false)
+        // no config (parse error) -> no
+        #expect(AppModel.shouldAutoStart(
+            hasConfig: false,
+            homeKit: .ready(accessoryCount: 1, accessoryFound: true)) == false)
+    }
+
     @Test("start sets running, stop sets stopped")
     func startStop() async {
         await withDependencies {

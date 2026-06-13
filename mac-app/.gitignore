@@ -2,3 +2,6 @@
 build/
 DerivedData/
 *.local
+
+# wrangler local cache/state
+.wrangler/

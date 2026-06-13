@@ -25,6 +25,12 @@ final class AppModel {
     private var task: Task<Void, Never>?
     private var controller: HomeKitController?
 
+    /// Fired whenever runState / homeKitState / configError changes, so a
+    /// non-SwiftUI observer (MenuBarController) can rebuild the menu.
+    var onChange: (@MainActor () -> Void)?
+
+    private func notify() { onChange?() }
+
     // MARK: Config
 
     func loadConfig() {
@@ -34,7 +40,10 @@ final class AppModel {
             configError = nil
             if let name = config?.homekitAccessoryName {
                 let c = HomeKitController(accessoryName: name)
-                c.onStateChange = { [weak self] state in self?.homeKitState = state }
+                c.onStateChange = { [weak self] state in
+                    self?.homeKitState = state
+                    self?.notify()
+                }
                 homeKitState = c.state
                 controller = c
             }
@@ -42,9 +51,23 @@ final class AppModel {
             config = nil
             configError = "\(error)"
         }
+        // Note: at first launch this fires before any observer wires `onChange`
+        // (AppDelegate calls loadConfig() before constructing MenuBarController),
+        // so the initial paint relies on MenuBarController.init calling rebuild()
+        // itself. Observers registered later (or in tests) do receive this.
+        notify()
     }
 
     var homeKitController: HomeKitController? { controller }
+
+    /// Pure decision used by `autoStart()`. Auto-start only when config loaded
+    /// and HomeKit has finished loading into a `.ready` state. `start()` re-guards
+    /// worker config and is idempotent, so this stays minimal.
+    static func shouldAutoStart(hasConfig: Bool, homeKit: HomeKitController.State) -> Bool {
+        guard hasConfig else { return false }
+        if case .ready = homeKit { return true }
+        return false
+    }
 
     // MARK: Lifecycle
 
@@ -62,6 +85,7 @@ final class AppModel {
         let interval = config.pollIntervalSeconds
         runState = .running
         log("polling started (every \(interval)s)")
+        notify()
 
         task = Task { [weak self] in
             await withDependencies {
@@ -122,14 +146,30 @@ final class AppModel {
         }
     }
 
+    /// Called once at launch. Waits for HomeKit to finish loading, then starts
+    /// polling if config + HomeKit are ready. `start()` is idempotent, so a menu
+    /// click during this window cannot spawn a second loop.
+    func autoStart() {
+        Task { [weak self] in
+            guard let self else { return }
+            await self.homeKitController?.waitUntilLoaded()
+            if AppModel.shouldAutoStart(hasConfig: self.config != nil, homeKit: self.homeKitState) {
+                self.start()
+            }
+        }
+    }
+
     func stop() {
         task?.cancel()
         task = nil
         runState = .stopped
         log("stopped")
+        notify()
     }
 
-    private func markStopped() { if runState == .running { runState = .stopped } }
+    private func markStopped() {
+        if runState == .running { runState = .stopped; notify() }
+    }
 
     private func log(_ message: String) {
         @Dependency(\.date) var date
