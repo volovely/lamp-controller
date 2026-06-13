@@ -109,6 +109,8 @@ describe("putCommand / hasSeen / markSeen", () => {
     const kv = fakeKVWithPut();
     await markSeen({ COMMANDS: kv } as any, "m2");
     expect(kv.store.get("seen:m2")).toBe("1");
-    expect(kv.puts[0].options?.expirationTtl).toBe(86400);
+    const firstPut = kv.puts[0];
+    expect(firstPut).toBeDefined();
+    expect(firstPut?.options?.expirationTtl).toBe(86400);
   });
 });
