@@ -59,7 +59,14 @@ function handleMessage(msg, workerUrl, relaySecret) {
     return;
   }
 
-  var verdict = JSON.parse(response.getContentText());
+  var verdict;
+  try {
+    verdict = JSON.parse(response.getContentText());
+  } catch (e) {
+    Logger.log('relay: bad JSON verdict for %s (leaving unread): %s', payload.msgId, e);
+    return; // leave unread so the next tick retries
+  }
+
   if (verdict.reply) {
     msg.reply(verdict.reply);
   }
