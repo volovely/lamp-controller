@@ -1,3 +1,5 @@
+import { json } from "./http";
+
 export interface AuthEnv {
   MAC_SHARED_SECRET: string;
 }
@@ -16,24 +18,17 @@ function timingSafeEqual(a: string, b: string): boolean {
   return mismatch === 0;
 }
 
-function jsonResponse(body: unknown, status: number): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
-}
-
 /**
  * Shared bearer check. Returns a 500 Response if the secret is unconfigured,
  * a 401 Response if the request lacks a valid token, or null if authorized.
  */
 function bearerGuard(request: Request, secret: string): Response | null {
-  if (!secret) return jsonResponse({ error: "server misconfigured" }, 500);
+  if (!secret) return json({ error: "server misconfigured" }, 500);
   const header = request.headers.get("Authorization") ?? "";
   const prefix = "Bearer ";
   const ok =
     header.startsWith(prefix) && timingSafeEqual(header.slice(prefix.length), secret);
-  return ok ? null : jsonResponse({ error: "unauthorized" }, 401);
+  return ok ? null : json({ error: "unauthorized" }, 401);
 }
 
 export function requireBearer(request: Request, env: AuthEnv): Response | null {
