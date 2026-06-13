@@ -86,12 +86,12 @@ const SYSTEM = [
   "The lamp is tunable white: brightness 0-100 percent and color temperature 2700K (warm) to 6500K (cool).",
   "Map fuzzy words to Kelvin: warm≈2700, neutral≈4000, cool≈5500, daylight≈6500.",
   'Use "off" for turning the lamp off (no other fields). Use "on" to turn it on (optionally with brightness/color).',
-  'Use "set" to adjust brightness/color of an already-on lamp.',
+  'Use "set" to adjust brightness/color whether the lamp is on or off (it also turns the lamp on).',
   "Always respond by calling set_lamp. Never answer in prose.",
 ].join(" ");
 
 const STRICT_SUFFIX =
-  " The previous attempt was invalid. Respond ONLY with a set_lamp tool call whose fields are within range.";
+  " Be precise: respond ONLY with a set_lamp tool call whose fields are strictly within range.";
 
 /** Live LlmClient backed by the Anthropic Messages API. `fetchImpl` is injectable for tests. */
 export function makeLlmClient(env: LlmEnv, fetchImpl: typeof fetch = fetch): LlmClient {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCommand } from "../src/schema";
+import { parseCommand, LlmCommandSchema } from "../src/schema";
 
 describe("parseCommand", () => {
   it("accepts a full valid command", () => {
@@ -59,8 +59,6 @@ describe("parseCommand", () => {
     ).toBeNull();
   });
 });
-
-import { LlmCommandSchema } from "../src/schema";
 
 describe("LlmCommandSchema", () => {
   it("accepts a bare on with no fields", () => {

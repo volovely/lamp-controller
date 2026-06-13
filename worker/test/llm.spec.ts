@@ -120,4 +120,19 @@ describe("makeLlmClient", () => {
     const f = fakeFetch(() => new Response("overloaded", { status: 529 }));
     await expect(makeLlmClient(env, f).complete("on", false)).rejects.toThrow(/529/);
   });
+
+  it("appends the strict suffix to body.system when strict=true", async () => {
+    const f = fakeFetch(() =>
+      new Response(JSON.stringify({
+        content: [{ type: "tool_use", name: "set_lamp", input: { action: "off" } }],
+      }), { status: 200 }),
+    );
+    await makeLlmClient(env, f).complete("on", true);
+    const call = f.calls[0];
+    if (!call) throw new Error("expected a fetch call");
+    const body = JSON.parse(call.init.body as string);
+    expect(body.system).toContain(
+      "Be precise: respond ONLY with a set_lamp tool call whose fields are strictly within range.",
+    );
+  });
 });
