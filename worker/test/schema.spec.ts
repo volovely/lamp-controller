@@ -59,3 +59,28 @@ describe("parseCommand", () => {
     ).toBeNull();
   });
 });
+
+import { LlmCommandSchema } from "../src/schema";
+
+describe("LlmCommandSchema", () => {
+  it("accepts a bare on with no fields", () => {
+    expect(LlmCommandSchema.safeParse({ action: "on" }).success).toBe(true);
+  });
+
+  it("accepts on with brightness + color_temp_k", () => {
+    const r = LlmCommandSchema.safeParse({ action: "on", brightness: 30, color_temp_k: 2700 });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects an unknown action", () => {
+    expect(LlmCommandSchema.safeParse({ action: "dim" }).success).toBe(false);
+  });
+
+  it("rejects out-of-range brightness", () => {
+    expect(LlmCommandSchema.safeParse({ action: "on", brightness: 500 }).success).toBe(false);
+  });
+
+  it("rejects unknown extra keys (strict)", () => {
+    expect(LlmCommandSchema.safeParse({ action: "on", id: "x" }).success).toBe(false);
+  });
+});

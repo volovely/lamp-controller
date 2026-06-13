@@ -18,3 +18,14 @@ export function parseCommand(value: unknown): Command | null {
   const result = CommandSchema.safeParse(value);
   return result.success ? result.data : null;
 }
+
+// The subset the LLM is asked to produce; the Worker adds id/created_at/source_msg_id.
+export const LlmCommandSchema = z
+  .object({
+    action: z.enum(["on", "off", "set"]),
+    brightness: z.number().int().min(0).max(100).optional(),
+    color_temp_k: z.number().int().min(2700).max(6500).optional(),
+  })
+  .strict();
+
+export type LlmCommand = z.infer<typeof LlmCommandSchema>;
