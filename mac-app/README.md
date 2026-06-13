@@ -1,21 +1,23 @@
 # Lamp Controller (desktop app)
 
-A Mac Catalyst SwiftUI app that runs on the home Mac continuously as a
-**menu-bar app**: a 💡 icon appears in the macOS menu bar; there is **no Dock
-icon**; an Activity window opens on launch and can be closed without quitting.
-It polls the Cloudflare Worker for queued commands and applies each one
-directly via Apple HomeKit — setting exact brightness (0–100) and colour
-temperature (Kelvin) with no preset snapping and no separate helper process.
+A Mac Catalyst SwiftUI app that runs on the home Mac as a **menu-bar app**: a 💡
+icon appears in the macOS menu bar and there is **no Dock icon**. It polls the
+Cloudflare Worker for queued commands and applies each one directly via Apple
+HomeKit — setting exact brightness (0–100) and colour temperature (Kelvin) with
+no preset snapping and no separate helper process.
 
 ### Behavior at runtime
 
 - **Auto-starts polling on launch** (once config and HomeKit access are ready).
-- The Activity window opens automatically on launch. You can **close it and the
-  app keeps running** in the menu bar — polling continues uninterrupted. Reopen
-  the window any time from the menu's **Show Activity…** item.
+- An **Activity window opens on launch**. **Keep it open (or minimized) to keep
+  the app running.** Closing the window (red ⊗) **quits the app** — a Mac
+  Catalyst limitation: the Activity window is the app's only UI scene, and macOS
+  terminates the process when the last scene closes (this could not be reliably
+  prevented from a Catalyst app). Minimizing the window keeps the scene alive, so
+  the app keeps polling in the menu bar.
 - The 💡 menu offers **Start** / **Stop** (to control polling), **Show
-  Activity…** (to reopen the Activity window), and **Quit** (the only way to
-  fully exit the app).
+  Activity…** (to bring the Activity window forward), and **Quit** (the explicit
+  way to exit).
 - To run at macOS login, add the app to **System Settings → General → Login
   Items** (manual step for v1 — there is no automatic installer).
 

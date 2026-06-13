@@ -12,11 +12,20 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
+        // When the app is only hosting unit tests, skip the menu-bar bootstrap:
+        // flipping to .accessory and installing an NSStatusItem prevents the
+        // XCTest runner from establishing its connection to the host.
+        if isRunningUnitTests { return true }
         AppKitBridge.setAccessoryActivationPolicy()
-        AppKitBridge.preventTerminationOnLastWindowClose()
         model.loadConfig()
         menuBar = MenuBarController(model: model)
         model.autoStart()
         return true
+    }
+
+    private var isRunningUnitTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+            || ProcessInfo.processInfo.environment["XCTestSessionIdentifier"] != nil
+            || NSClassFromString("XCTestCase") != nil
     }
 }

@@ -10,8 +10,10 @@ in-process Apple HomeKit. There is no launchd daemon for the lamp agent — the 
 app** (💡 icon in the menu bar, no Dock icon) and **auto-starts polling** on
 launch. It must be running; click the 💡 menu and confirm it shows **●
 Running**. Use **Stop**/**Start** in that menu to control polling and **Quit**
-to exit. The Activity window appears on launch and can be closed without
-quitting (polling continues); reopen it from **Show Activity…**.
+to exit. An Activity window opens on launch — **keep it open or minimized**;
+**closing the window (red ⊗) quits the app** (a Mac Catalyst limitation —
+closing the only UI scene terminates the process). Minimize instead to keep it
+running in the background.
 
 ---
 

@@ -6,7 +6,6 @@
 
 import Foundation
 import Darwin
-import ObjectiveC
 
 enum AppKitBridge {
     /// objc_msgSend raw symbol (RTLD_DEFAULT == -2). Computed (not stored) to stay
@@ -28,27 +27,6 @@ enum AppKitBridge {
         typealias SetPolicyFn = @convention(c) (AnyObject, Selector, Int) -> Bool
         let fn = unsafeBitCast(sym, to: SetPolicyFn.self)
         _ = fn(sharedApp, NSSelectorFromString("setActivationPolicy:"), 1)
-    }
-
-    /// Mac Catalyst defaults to terminating the app when its last window closes,
-    /// which would also tear down the menu-bar status item. Override the
-    /// NSApplication delegate's `applicationShouldTerminateAfterLastWindowClosed:`
-    /// to return NO, so the app keeps running headless in the menu bar after the
-    /// Activity window is closed. Quit from the menu (exit(0)) is the way to exit.
-    @MainActor
-    static func preventTerminationOnLastWindowClose() {
-        guard
-            let appClass = NSClassFromString("NSApplication") as? NSObject.Type,
-            let sharedApp = appClass.value(forKey: "sharedApplication") as? NSObject,
-            let delegate = sharedApp.value(forKey: "delegate") as? NSObject,
-            let cls: AnyClass = object_getClass(delegate)
-        else { return }
-        let sel = NSSelectorFromString("applicationShouldTerminateAfterLastWindowClosed:")
-        // Block IMP signature is (self, sender) -> BOOL — no _cmd.
-        let block: @convention(block) (AnyObject, AnyObject) -> ObjCBool = { _, _ in ObjCBool(false) }
-        let imp = imp_implementationWithBlock(block)
-        // class_replaceMethod adds the method if absent, replaces it if present.
-        class_replaceMethod(cls, sel, imp, "c@:@")
     }
 }
 

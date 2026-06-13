@@ -19,18 +19,33 @@ friction so it can run quietly in the background and auto-start on launch.
 Dock icon**; the app auto-starts polling (menu shows `● Running`);
 insert a command with `wrangler kv put` → within one poll interval the lamp
 obeys and the Activity window shows it; **Stop**/**Start**
-from the menu toggle polling; closing the Activity window keeps the app polling;
+from the menu toggle polling; keep the window open or minimized to keep polling;
 **Quit** from the menu exits.
 
-> **Known limitation (discovered at implementation):** true *no-window-on-launch*
-> could not be delivered. SwiftUI's `defaultLaunchBehavior(.suppressed)` is marked
-> `@available(iOS, unavailable)` and the Mac Catalyst triple is `ios-macabi`, so it
-> fails to compile. As shipped, the **Activity window appears on launch** and can
-> be closed without quitting (polling continues headless via the status item); it
-> reopens from **Show Activity…**. Every other goal — no Dock icon, menu-bar
-> control, auto-start, background run, close-≠-quit — is met. A future workaround
-> (intercepting/destroying the initial scene in `AppDelegate`) is possible if the
-> launch window proves objectionable.
+> **Known limitations (discovered at implementation):**
+>
+> 1. **No-window-on-launch could not be delivered.** SwiftUI's
+>    `defaultLaunchBehavior(.suppressed)` is marked `@available(iOS, unavailable)`
+>    and the Mac Catalyst triple is `ios-macabi`, so it fails to compile. As
+>    shipped, the **Activity window appears on launch**.
+> 2. **Close-≠-quit could not be delivered.** Closing the Activity window **quits
+>    the app**. Diagnosis (via runtime instrumentation): the Activity window is the
+>    app's only `UIWindowScene`; closing it disconnects that scene and macOS
+>    terminates the process. This is a UIKit-scene-level teardown that bypasses
+>    every AppKit window hook we tried — `applicationShouldTerminateAfterLastWindowClosed:`
+>    is never consulted (the status item keeps an AppKit window alive, so AppKit
+>    never thinks the "last window" closed), and swizzling `performClose:`/`close`
+>    on the concrete `UINSWindow` subclass did not intercept the close either. The
+>    `.accessory` activation policy does not prevent scene-zero termination.
+>    **Workaround for the user: keep the window open or minimized** (minimizing
+>    keeps the scene connected, so polling continues); use the menu's **Quit** to
+>    exit intentionally.
+>
+> Every other goal — no Dock icon, menu-bar control, auto-start, background run
+> while the window is open/minimized — is met. A future fix would require
+> reaching the scene's underlying `NSWindow` via private Catalyst API to convert
+> close→hide, or shipping a small bundled AppKit plugin; both were judged not
+> worth the fragility on the current OS.
 
 ## Why this design
 
@@ -194,9 +209,11 @@ Worker KV ──GET /commands (bearer)──▶ WorkerCommandSource ──▶ Po
 | **Show Activity…** | Opens the `ContentView` window (bring-to-front) |
 | **Quit** | `stop()` then `exit(0)` |
 
-**Window lifecycle:** Closing the Activity window does **not** quit the app —
-polling continues headless via the status item. Quit is explicit, from the menu.
-This is the whole point of the menu-bar model.
+**Window lifecycle (as designed — see Known limitation #2 for what shipped):**
+the intent was that closing the Activity window would *not* quit the app. In
+practice Mac Catalyst terminates the process when the only `UIWindowScene`
+closes, so **closing the window quits the app**. The working substitute is to
+**minimize** the window (keeps the scene connected) and use **Quit** to exit.
 
 ## Error handling
 
