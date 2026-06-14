@@ -1,6 +1,7 @@
 import { requireRelayBearer, type RelayAuthEnv } from "./auth";
 import { json } from "./http";
 import { putCommand, hasSeen, markSeen, type KVEnv } from "./kv";
+import { formatQueuedReply, formatUnparseableReply } from "./reply";
 import { type Command, type LlmCommand } from "./schema";
 
 export type IngestEnv = RelayAuthEnv & KVEnv;
@@ -11,9 +12,6 @@ export interface IngestDeps {
   uuid(): string;
   now(): string;
 }
-
-const UNPARSEABLE_REPLY =
-  "Couldn't understand that command. Try e.g. 'on, warm, 30%'.";
 
 export async function handleIngest(
   request: Request,
@@ -65,7 +63,7 @@ export async function handleIngest(
       console.log(JSON.stringify({ level: "error", msg: "markSeen failed on unparseable path", msgId, err: String(err) }));
       return json({ status: "error", reply: null }, 502);
     }
-    return json({ status: "unparseable", reply: UNPARSEABLE_REPLY });
+    return json({ status: "unparseable", reply: formatUnparseableReply(text) });
   }
 
   const command: Command = {
@@ -92,5 +90,5 @@ export async function handleIngest(
   } catch (err) {
     console.log(JSON.stringify({ level: "warn", msg: "markSeen failed on queued path", msgId, err: String(err) }));
   }
-  return json({ status: "queued", command: extracted, reply: null });
+  return json({ status: "queued", command: extracted, reply: formatQueuedReply(text, extracted) });
 }

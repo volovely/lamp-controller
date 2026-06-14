@@ -71,14 +71,25 @@ describe("POST /ingest", () => {
     expect(res.status).toBe(400);
   });
 
-  it("queues a valid command and writes KV", async () => {
+  it("queues a valid command and writes KV, reply contains processing log", async () => {
     const kv = fakeKV();
     const res = await handleIngest(post(validBody), env(kv), deps());
     expect(res.status).toBe(200);
     const json = await body(res);
     expect(json.status).toBe("queued");
     expect(json.command).toEqual({ action: "on", brightness: 30 });
-    expect(json.reply).toBeNull();
+    // reply must now be a processing-log string, not null
+    expect(typeof json.reply).toBe("string");
+    const lines = (json.reply as string).split("\n");
+    expect(lines).toHaveLength(3);
+    expect(lines[0]).toMatch(/^Got request —/);
+    expect(lines[1]).toMatch(/^Got response from the model —/);
+    expect(lines[2]).toMatch(/^Executing —/);
+    // spot-check the echoed request body (validBody.body is "on 30%")
+    expect(lines[0]).toContain("on 30%");
+    // spot-check the command details
+    expect(lines[1]).toContain("on");
+    expect(lines[1]).toContain("brightness 30");
     expect(JSON.parse(kv.store.get("command:fixed-uuid")!)).toEqual({
       id: "fixed-uuid", action: "on", brightness: 30,
       created_at: "2026-06-13T10:00:00.000Z", source_msg_id: "m1",
@@ -110,14 +121,20 @@ describe("POST /ingest", () => {
     expect(extractCalled).toBe(false);
   });
 
-  it("returns unparseable + a reply and marks seen when extraction fails", async () => {
+  it("returns unparseable + a two-line reply and marks seen when extraction fails", async () => {
     const kv = fakeKV();
     const res = await handleIngest(post(validBody), env(kv),
       deps({ extract: async () => null }));
     expect(res.status).toBe(200);
     const json = await body(res);
     expect(json.status).toBe("unparseable");
-    expect(json.reply).toMatch(/couldn't understand/i);
+    expect(typeof json.reply).toBe("string");
+    const lines = (json.reply as string).split("\n");
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toMatch(/^Got request —/);
+    // validBody.body is "on 30%" — check it's echoed
+    expect(lines[0]).toContain("on 30%");
+    expect(lines[1]).toMatch(/couldn't understand/i);
     expect(kv.store.get("seen:m1")).toBe("1");
     expect([...kv.store.keys()].some((k) => k.startsWith("command:"))).toBe(false);
   });
